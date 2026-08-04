@@ -41,25 +41,29 @@ ese modo los formularios y el panel no guardan datos reales.
 
 1. Crear un proyecto nuevo en Supabase.
 2. Ejecutar `supabase/schema.sql` desde el SQL Editor.
-3. Crear exactamente dos usuarios en Authentication: Cristian y Nicolás.
-4. Copiar los UUID de esos usuarios en el `insert` comentado al final del
-   esquema para crear sus perfiles administradores.
-5. Copiar `.env.example` como `.env.local` y completar:
+3. Autorizar de forma privada el correo inicial en
+   `admin_emails_permitidos` (no guardarlo en GitHub).
+4. Desde `/ingreso`, elegir **Activar cuenta** para crear la contraseña y
+   confirmar el correo.
+5. Una vez dentro del panel, usar **Equipo y accesos** para autorizar la
+   segunda cuenta.
+6. Copiar `.env.example` como `.env.local` y completar:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://TU-PROYECTO.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=TU_CLAVE_ANON
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_TU_CLAVE_PUBLICA
 ```
 
-La clave pública `anon` puede usarse en el navegador porque la protección real
-la aplican las políticas RLS. Nunca publicar la `service_role`.
+La clave `publishable` está diseñada para usarse en el navegador. La protección
+real la aplican las políticas RLS. Nunca publicar la `service_role`.
 
 ### Privacidad del foro
 
 La tabla `consultas` contiene teléfono, correo y localidad. La vista
-`consultas_publicas` omite esas columnas. El visitante sólo puede crear una
-consulta y leer la vista segura; únicamente los dos perfiles administradores
-pueden consultar la tabla completa.
+`consultas_publicas` omite esas columnas y el rol público no tiene permiso para
+leerlas directamente. El visitante sólo puede crear una consulta y leer la
+vista segura; únicamente los perfiles administradores pueden consultar la
+tabla completa.
 
 ## Presupuestos y comprobantes
 
@@ -97,6 +101,5 @@ guardarlas en el repositorio.
 
 - CUIT y domicilio fiscal de cada emisor;
 - enlace real de LinkedIn;
-- correos privados para las dos cuentas administradoras;
-- datos de Supabase;
+- correo privado de la segunda cuenta administradora;
 - configuración fiscal para ARCA.
