@@ -1,5 +1,5 @@
 export const metroClima = {
-  coverage: "Buenos Aires y Gran Buenos Aires",
+  coverage: "CABA y Gran Buenos Aires",
   instagramHandle: "@metro_climaa",
   instagramUrl: "https://www.instagram.com/metro_climaa/",
   paymentMethods: "Efectivo, transferencia bancaria o Mercado Pago",
@@ -13,7 +13,7 @@ export const metroClima = {
     },
     {
       name: "Nicolás",
-      display: "+54 11 6922-1486",
+      display: "+54 9 11 6922-1486",
       href: "https://wa.me/5491169221486?text=Hola%20MetroClima%2C%20quisiera%20hacer%20una%20consulta.",
     },
   ],
