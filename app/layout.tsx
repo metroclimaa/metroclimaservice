@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,11 +8,14 @@ export const metadata: Metadata = {
     template: "%s | MetroClima",
   },
   description:
-    "Instalación, mantenimiento y reparación de aire acondicionado para hogares, countries, consorcios y empresas.",
+    "Preinstalación, instalación, mantenimiento y reparación de sistemas Split, Multi Split, piso-techo y VRV/VRF en CABA y Gran Buenos Aires.",
   keywords: [
     "aire acondicionado",
     "instalación de aire acondicionado",
     "mantenimiento de aire acondicionado",
+    "preinstalación de aire acondicionado",
+    "VRV VRF",
+    "Multi Split",
     "MetroClima",
   ],
   other: {
@@ -30,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body><AnalyticsTracker />{children}</body>
     </html>
   );
 }

@@ -22,6 +22,7 @@ export function getSupabaseBrowserClient() {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true,
+          experimental: { passkey: true },
         },
       },
     );

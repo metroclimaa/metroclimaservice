@@ -5,7 +5,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { metroClima } from "@/lib/metroclima";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase/client";
 
-type Tab = "resumen" | "consultas" | "presupuestos" | "comprobantes" | "clientes" | "materiales" | "equipo";
+type Tab = "resumen" | "consultas" | "estadisticas" | "presupuestos" | "comprobantes" | "clientes" | "materiales" | "equipo";
 type Line = { id: number; description: string; quantity: number; unitPrice: number };
 type Profile = { id: string; nombre: string; activo: boolean };
 type Answer = { id: string; respuesta: string; publica: boolean; creado_en: string; autor_id: string };
@@ -65,6 +65,22 @@ type Invoice = {
   clientes: { nombre_razon_social: string } | null;
 };
 type AllowedAdmin = { email: string; nombre: string; activo: boolean };
+type AnalyticsEvent = {
+  id: string;
+  event_type: "page_view" | "whatsapp_click" | "budget_click" | "service_interest";
+  session_id: string;
+  pathname: string;
+  source: string;
+  device_type: "celular" | "tablet" | "computadora";
+  label: string | null;
+  created_at: string;
+};
+type PasskeyRecord = {
+  id: string;
+  friendly_name?: string;
+  created_at: string;
+  last_used_at?: string;
+};
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const shortDate = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric" });
@@ -109,20 +125,25 @@ export function AdminPanel() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [allowedAdmins, setAllowedAdmins] = useState<AllowedAdmin[]>([]);
+  const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
+  const [totalViews, setTotalViews] = useState(0);
 
   async function loadData() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
-    const [questionResult, clientResult, materialResult, budgetResult, invoiceResult, adminResult] = await Promise.all([
+    const analyticsSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [questionResult, clientResult, materialResult, budgetResult, invoiceResult, adminResult, analyticsResult, totalViewsResult] = await Promise.all([
       supabase.from("consultas").select("*,respuestas(id,respuesta,publica,creado_en,autor_id)").order("creado_en", { ascending: false }),
       supabase.from("clientes").select("id,tipo,nombre_razon_social,telefono,email,localidad,direccion").order("nombre_razon_social"),
       supabase.from("materiales").select("id,codigo,nombre,unidad,costo_referencia,controla_stock,stock_actual,stock_minimo,activo").eq("activo", true).order("nombre"),
       supabase.from("presupuestos").select("id,numero,titulo,total,estado,creado_en,validez_dias,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
       supabase.from("comprobantes").select("id,tipo,punto_venta,numero,total,estado,emitido_en,creado_en,clientes(nombre_razon_social)").order("creado_en", { ascending: false }),
       supabase.from("admin_emails_permitidos").select("email,nombre,activo").order("nombre"),
+      supabase.from("analiticas_eventos").select("id,event_type,session_id,pathname,source,device_type,label,created_at").gte("created_at", analyticsSince).order("created_at", { ascending: true }),
+      supabase.from("analiticas_eventos").select("id", { count: "exact", head: true }).eq("event_type", "page_view"),
     ]);
 
-    const firstError = [questionResult, clientResult, materialResult, budgetResult, invoiceResult, adminResult].find((result) => result.error)?.error;
+    const firstError = [questionResult, clientResult, materialResult, budgetResult, invoiceResult, adminResult, analyticsResult, totalViewsResult].find((result) => result.error)?.error;
     if (firstError) throw firstError;
 
     setConsultations((questionResult.data ?? []) as Consultation[]);
@@ -131,6 +152,8 @@ export function AdminPanel() {
     setBudgets((budgetResult.data ?? []) as unknown as Budget[]);
     setInvoices((invoiceResult.data ?? []) as unknown as Invoice[]);
     setAllowedAdmins((adminResult.data ?? []) as AllowedAdmin[]);
+    setAnalyticsEvents((analyticsResult.data ?? []) as AnalyticsEvent[]);
+    setTotalViews(totalViewsResult.count ?? 0);
   }
 
   useEffect(() => {
@@ -205,6 +228,7 @@ export function AdminPanel() {
   const navItems: { id: Tab; label: string; mark: string; count?: number }[] = [
     { id: "resumen", label: "Resumen", mark: "⌂" },
     { id: "consultas", label: "Consultas", mark: "?", count: pendingCount || undefined },
+    { id: "estadisticas", label: "Estadísticas", mark: "↗" },
     { id: "presupuestos", label: "Presupuestos", mark: "$" },
     { id: "comprobantes", label: "Comprobantes", mark: "▤" },
     { id: "clientes", label: "Clientes", mark: "◎" },
@@ -221,9 +245,9 @@ export function AdminPanel() {
         </Link>
         <nav>
           <p>Principal</p>
-          {navItems.slice(0, 4).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}{item.count ? <b>{item.count}</b> : null}</button>)}
+          {navItems.slice(0, 5).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}{item.count ? <b>{item.count}</b> : null}</button>)}
           <p>Organización</p>
-          {navItems.slice(4).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}
+          {navItems.slice(5).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}
         </nav>
         <div className="admin-user">
           <span>{initials(profile.nombre)}</span><div><strong>{profile.nombre}</strong><small>Administrador</small></div><button onClick={signOut} aria-label="Cerrar sesión">↪</button>
@@ -240,6 +264,7 @@ export function AdminPanel() {
         <div className="admin-content">
           {tab === "resumen" && <Dashboard profile={profile} consultations={consultations} budgets={budgets} invoices={invoices} onNavigate={selectTab} />}
           {tab === "consultas" && <Questions consultations={consultations} userId={userId} onRefresh={refresh} />}
+          {tab === "estadisticas" && <Analytics events={analyticsEvents} totalViews={totalViews} />}
           {tab === "presupuestos" && <Budgets budgets={budgets} clients={clients} userId={userId} onRefresh={refresh} />}
           {tab === "comprobantes" && <Invoices invoices={invoices} />}
           {tab === "clientes" && <Clients clients={clients} onRefresh={refresh} />}
@@ -283,6 +308,90 @@ function Dashboard({ profile, consultations, budgets, invoices, onNavigate }: { 
         <div className="admin-card-head"><div><h2>Actividad comercial</h2><p>Últimos presupuestos</p></div><button onClick={() => onNavigate("presupuestos")}>Gestionar →</button></div>
         {budgets.slice(0, 3).map((item) => <div className="agenda-date" key={item.id}><strong>{String(item.numero).padStart(3, "0")}</strong><span>PRE<small>{shortDate.format(new Date(item.creado_en))}</small></span><div><b>{money.format(Number(item.total))}</b><p>{item.titulo}</p><small>{item.clientes?.nombre_razon_social || "Cliente sin vincular"}</small></div></div>)}
         {!budgets.length && <EmptyState title="Sin presupuestos todavía" text="Creá el primero desde el módulo Presupuestos." />}
+      </section>
+    </div>
+  </>;
+}
+
+function Analytics({ events, totalViews }: { events: AnalyticsEvent[]; totalViews: number }) {
+  const pageViews = events.filter((event) => event.event_type === "page_view");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sevenDaysAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const todayViews = pageViews.filter((event) => new Date(event.created_at) >= today).length;
+  const sevenDayViews = pageViews.filter((event) => new Date(event.created_at) >= sevenDaysAgo).length;
+  const approximateVisitors = new Set(pageViews.map((event) => event.session_id)).size;
+  const whatsappClicks = events.filter((event) => event.event_type === "whatsapp_click").length;
+  const budgetClicks = events.filter((event) => event.event_type === "budget_click").length;
+
+  function rank(list: AnalyticsEvent[], key: (event: AnalyticsEvent) => string) {
+    const counts = new Map<string, number>();
+    list.forEach((event) => {
+      const label = key(event) || "Sin identificar";
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }
+
+  const sources = rank(pageViews, (event) => event.source).slice(0, 5);
+  const devices = rank(pageViews, (event) => event.device_type);
+  const services = rank(
+    events.filter((event) => event.event_type === "service_interest"),
+    (event) => event.label || "Servicio",
+  ).slice(0, 5);
+  const dailyViews = Array.from({ length: 7 }, (_, index) => {
+    const start = new Date(sevenDaysAgo.getTime() + index * 24 * 60 * 60 * 1000);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return {
+      label: new Intl.DateTimeFormat("es-AR", { weekday: "short" }).format(start).replace(".", ""),
+      value: pageViews.filter((event) => {
+        const createdAt = new Date(event.created_at);
+        return createdAt >= start && createdAt < end;
+      }).length,
+    };
+  });
+  const maxDaily = Math.max(...dailyViews.map((day) => day.value), 1);
+  const maxSource = Math.max(...sources.map(([, value]) => value), 1);
+  const maxDevice = Math.max(...devices.map(([, value]) => value), 1);
+
+  return <>
+    <PageTitle eyebrow="Uso del sitio" title="Estadísticas" text="Métricas privadas de los últimos 30 días, sin nombres, correos ni direcciones IP." action={<span className="connected-chip">● Sólo administradores</span>} />
+    <div className="metric-grid analytics-metrics">
+      <article><span>Visitas de hoy</span><strong>{todayViews}</strong><small>páginas vistas</small><i>24h</i></article>
+      <article><span>Últimos 7 días</span><strong>{sevenDayViews}</strong><small>páginas vistas</small><i>7d</i></article>
+      <article><span>Visitantes aproximados</span><strong>{approximateVisitors}</strong><small>sesiones en 30 días</small><i>≈</i></article>
+      <article><span>Visitas acumuladas</span><strong>{totalViews}</strong><small>desde el inicio de la medición</small><i>∑</i></article>
+    </div>
+    <div className="analytics-grid">
+      <section className="admin-card analytics-chart-card">
+        <div className="admin-card-head"><div><h2>Evolución de visitas</h2><p>Últimos 7 días</p></div><span className="analytics-conversion">{whatsappClicks + budgetClicks} acciones comerciales</span></div>
+        <div className="daily-chart" aria-label="Gráfico de visitas de los últimos siete días">
+          {dailyViews.map((day) => <div key={day.label}><span><i style={{ height: `${Math.max((day.value / maxDaily) * 100, day.value ? 8 : 2)}%` }} /></span><b>{day.value}</b><small>{day.label}</small></div>)}
+        </div>
+      </section>
+      <section className="admin-card analytics-actions-card">
+        <div className="admin-card-head"><div><h2>Interés comercial</h2><p>Acciones registradas</p></div></div>
+        <div className="analytics-action-list">
+          <div><span>WhatsApp</span><strong>{whatsappClicks}</strong><small>clics</small></div>
+          <div><span>Presupuesto / consulta</span><strong>{budgetClicks}</strong><small>clics</small></div>
+          <div><span>Servicios consultados</span><strong>{services.reduce((sum, [, value]) => sum + value, 0)}</strong><small>intereses</small></div>
+        </div>
+      </section>
+      <section className="admin-card analytics-list-card">
+        <div className="admin-card-head"><div><h2>Origen de las visitas</h2><p>Google, Instagram, QR o acceso directo</p></div></div>
+        <div className="ranked-list">
+          {sources.length ? sources.map(([label, value]) => <div key={label}><span>{label}</span><b><i style={{ width: `${(value / maxSource) * 100}%` }} /></b><strong>{value}</strong></div>) : <EmptyState title="Sin visitas todavía" text="Los orígenes aparecerán cuando comiencen a llegar visitantes." />}
+        </div>
+      </section>
+      <section className="admin-card analytics-list-card">
+        <div className="admin-card-head"><div><h2>Dispositivos</h2><p>Cómo ingresan a MetroClima</p></div></div>
+        <div className="ranked-list">
+          {devices.length ? devices.map(([label, value]) => <div key={label}><span>{label}</span><b><i style={{ width: `${(value / maxDevice) * 100}%` }} /></b><strong>{value}</strong></div>) : <EmptyState title="Sin datos todavía" text="Se mostrarán celular, tablet y computadora." />}
+        </div>
+      </section>
+      <section className="admin-card analytics-services-card">
+        <div className="admin-card-head"><div><h2>Servicios más consultados</h2><p>Qué despierta mayor interés</p></div></div>
+        {services.length ? <ol>{services.map(([label, value]) => <li key={label}><span>{label}</span><strong>{value}</strong></li>)}</ol> : <EmptyState title="Todavía sin consultas" text="Los servicios seleccionados aparecerán en este ranking." />}
       </section>
     </div>
   </>;
@@ -566,5 +675,74 @@ function TeamAccess({ admins, onRefresh }: { admins: AllowedAdmin[]; onRefresh: 
       <section className="admin-card"><div className="admin-card-head"><div><h2>Cuentas autorizadas</h2><p>Los correos nunca se muestran en la web pública.</p></div><span className="connected-chip">Máximo previsto: 2</span></div><div className="access-list">{admins.map((admin) => <div key={admin.email}><span>{initials(admin.nombre)}</span><div><strong>{admin.nombre}</strong><small>{admin.email}</small></div><Status value={admin.activo ? "Activo" : "Inactivo"} /><button onClick={() => toggleAdmin(admin)}>{admin.activo ? "Desactivar" : "Reactivar"}</button></div>)}</div>{!admins.length && <EmptyState title="Sin cuentas autorizadas" text="Agregá el primer correo administrador." />}</section>
       <form className="admin-card quick-form" onSubmit={allowAdmin}><h2>Autorizar una cuenta</h2><p>Cuando agregues el correo de Cristian, podrá elegir su propia contraseña desde “Activar cuenta”.</p><label><span>Nombre</span><input name="nombre" required placeholder="Cristian" /></label><label><span>Correo privado</span><input name="email" type="email" required /></label><button className="admin-primary" disabled={saving || admins.filter((admin) => admin.activo).length >= 2}>{saving ? "Autorizando…" : "Autorizar correo"}</button>{admins.filter((admin) => admin.activo).length >= 2 && <small className="inline-warning">Ya están activas las dos cuentas previstas.</small>}</form>
     </div>
+    {hasSupabaseConfig && <PasskeyManager />}
   </>;
+}
+
+function PasskeyManager() {
+  const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([]);
+  const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function loadPasskeys() {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const { data, error } = await supabase.auth.passkey.list();
+    if (!error) setPasskeys((data ?? []) as PasskeyRecord[]);
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    supabase.auth.passkey.list().then(({ data, error }) => {
+      if (mounted && !error) setPasskeys((data ?? []) as PasskeyRecord[]);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  async function registerPasskey() {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    setSaving(true);
+    setStatus("");
+    const { data, error } = await supabase.auth.registerPasskey();
+    setSaving(false);
+    if (error) {
+      setStatus(
+        error.code === "passkey_disabled"
+          ? "Primero hay que habilitar Passkeys en Supabase para metroclimaa.com.ar."
+          : "No se pudo registrar la passkey. Podés volver a intentarlo.",
+      );
+      return;
+    }
+    setStatus(`✓ ${data.friendly_name || "Passkey"} registrada correctamente.`);
+    await loadPasskeys();
+  }
+
+  async function deletePasskey(passkeyId: string) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const { error } = await supabase.auth.passkey.delete({ passkeyId });
+    if (!error) {
+      setStatus("✓ Passkey eliminada.");
+      await loadPasskeys();
+    }
+  }
+
+  return <section className="admin-card passkey-security-card">
+    <div className="passkey-security-copy">
+      <span className="passkey-security-icon">◎</span>
+      <div><h2>Acceso biométrico</h2><p>Registrá este dispositivo para ingresar con Face ID, huella o PIN sin escribir la contraseña.</p></div>
+      <button className="admin-primary" onClick={registerPasskey} disabled={saving}>{saving ? "Registrando…" : "＋ Registrar dispositivo"}</button>
+    </div>
+    {status && <p className="passkey-status" role="status">{status}</p>}
+    {passkeys.length > 0 && <div className="passkey-list">
+      {passkeys.map((passkey) => <div key={passkey.id}>
+        <span>✓</span>
+        <div><strong>{passkey.friendly_name || "Passkey"}</strong><small>Creada el {shortDate.format(new Date(passkey.created_at))}{passkey.last_used_at ? ` · Último uso ${shortDate.format(new Date(passkey.last_used_at))}` : ""}</small></div>
+        <button onClick={() => deletePasskey(passkey.id)}>Eliminar</button>
+      </div>)}
+    </div>}
+  </section>;
 }

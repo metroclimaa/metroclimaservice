@@ -6,24 +6,45 @@ import { metroClima } from "@/lib/metroclima";
 const services = [
   {
     number: "01",
-    title: "Instalación profesional",
-    text: "Evaluamos el ambiente, definimos la mejor ubicación y ejecutamos una instalación limpia, segura y pensada para rendir bien.",
-    image: "/metroclima-residencial.png",
-    alt: "Aire acondicionado instalado en un living contemporáneo",
+    title: "Preinstalaciones",
+    text: "Preparamos cañerías de cobre, desagües, alimentación eléctrica y pases antes de cerrar paredes o cielorrasos.",
+    image: "/servicio-preinstalacion.webp",
+    alt: "Cañerías, desagüe y canalizaciones preparados durante una preinstalación",
   },
   {
     number: "02",
-    title: "Mantenimiento preventivo",
-    text: "Limpieza técnica, control de drenajes, filtros y funcionamiento general para recuperar confort y evitar fallas innecesarias.",
-    image: "/metroclima-comercial.png",
-    alt: "Climatización integrada en un espacio corporativo",
+    title: "Split y Multi Split",
+    text: "Instalamos equipos residenciales y sistemas con varias unidades interiores, cuidando rendimiento, drenaje y terminaciones.",
+    image: "/servicio-split-multisplit.webp",
+    alt: "Equipo Split instalado en un ambiente residencial",
   },
   {
     number: "03",
+    title: "Equipos piso-techo",
+    text: "Soluciones de mayor capacidad para salones, oficinas, locales y espacios comerciales que necesitan una distribución uniforme.",
+    image: "/servicio-piso-techo.webp",
+    alt: "Equipo piso-techo instalado en un espacio comercial",
+  },
+  {
+    number: "04",
+    title: "Sistemas VRV / VRF",
+    text: "Instalación, puesta en marcha, mantenimiento y diagnóstico para proyectos comerciales y sistemas de climatización centralizados.",
+    image: "/servicio-vrv-vrf.webp",
+    alt: "Climatización centralizada para oficinas y empresas",
+  },
+  {
+    number: "05",
+    title: "Mantenimiento y limpieza",
+    text: "Limpieza técnica, control de drenajes, filtros y funcionamiento general con productos adecuados para cada tipo de suciedad.",
+    image: "/servicio-mantenimiento.webp",
+    alt: "Limpieza técnica de filtros y unidad interior de un equipo Split",
+  },
+  {
+    number: "06",
     title: "Diagnóstico y reparación",
-    text: "Buscamos la causa real del problema, explicamos el diagnóstico con claridad y presupuestamos antes de avanzar.",
-    image: "/metroclima-hero.png",
-    alt: "Casa contemporánea climatizada al atardecer",
+    text: "Detectamos la causa real de la falla y también adecuamos circuitos, protecciones y alimentación eléctrica cuando el proyecto lo requiere.",
+    image: "/servicio-diagnostico.webp",
+    alt: "Diagnóstico técnico con instrumental sobre una unidad exterior",
   },
 ];
 
@@ -59,17 +80,17 @@ export default function Home() {
           <p className="eyebrow light"><span></span> Climatización a tu medida</p>
           <h1>Confort que se siente.<br /><em>Trabajo que se nota.</em></h1>
           <p className="hero-lead">
-            Instalación, mantenimiento y reparación de aire acondicionado para hogares,
-            countries, consorcios y empresas.
+            Preinstalación, instalación, mantenimiento y reparación de sistemas de
+            climatización para hogares, comercios y empresas.
           </p>
           <div className="hero-actions">
-            <Link className="button button-primary" href="/consultas#nueva-consulta">Pedí tu presupuesto <span>→</span></Link>
+            <Link className="button button-primary" href="/consultas#nueva-consulta" data-analytics-event="budget_click" data-analytics-label="hero">Pedí tu presupuesto <span>→</span></Link>
             <Link className="button button-ghost" href="/#servicios">Conocé los servicios</Link>
           </div>
           <div className="hero-trust">
-            <span><b>✓</b> Diagnóstico claro</span>
-            <span><b>✓</b> Instalación prolija</span>
-            <span><b>✓</b> Atención personalizada</span>
+            <span><b>✓</b> Seguros vigentes</span>
+            <span><b>✓</b> Matrícula AC</span>
+            <span><b>✓</b> Matrícula eléctrica</span>
           </div>
         </div>
         <a className="scroll-cue" href="#servicios" aria-label="Ir a servicios"><span></span>Descubrí más</a>
@@ -84,8 +105,8 @@ export default function Home() {
           <div className="intro-copy">
             <p>
               Somos Cristian y Nicolás. En MetroClima combinamos criterio técnico,
-              trato directo y terminaciones cuidadas para que cada instalación funcione bien y se
-              integre al espacio.
+              trato directo y terminaciones cuidadas. Acompañamos cada proyecto desde la
+              preinstalación hasta la puesta en marcha y el mantenimiento del sistema.
             </p>
             <div className="mini-metrics">
               <div><strong>2</strong><span>responsables en cada proyecto</span></div>
@@ -95,27 +116,50 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="backing-section" aria-labelledby="respaldo-title">
+        <div className="shell backing-grid">
+          <div>
+            <p className="eyebrow light"><span></span> Trabajo con respaldo</p>
+            <h2 id="respaldo-title">Seguridad técnica en cada intervención.</h2>
+          </div>
+          <div className="backing-list">
+            {[
+              "Seguros de trabajo vigentes",
+              "Personal matriculado en aire acondicionado",
+              "Personal matriculado en electricidad",
+            ].map((item) => <span key={item}><b>✓</b>{item}</span>)}
+            <span><b>✓</b>Garantía sobre nuestros trabajos</span>
+          </div>
+        </div>
+      </section>
+
       <section className="services-section" id="servicios">
         <div className="shell">
           <div className="section-heading">
             <div>
               <p className="eyebrow"><span></span> Lo que hacemos</p>
-              <h2>Soluciones pensadas para cada espacio</h2>
+              <h2>Soluciones para cada etapa y cada escala</h2>
             </div>
-            <p>Desde una habitación hasta una oficina completa, el criterio es el mismo: confort, seguridad y una ejecución cuidada.</p>
+            <p>Desde una preinstalación en obra hasta un sistema VRV/VRF, trabajamos con el mismo criterio: seguridad, rendimiento y terminaciones cuidadas.</p>
           </div>
 
           <div className="service-grid">
             {services.map((service) => (
               <article className="service-card" key={service.number}>
                 <div className="service-visual">
-                  <img src={service.image} alt={service.alt} />
+                  <img
+                    src={service.image}
+                    alt={service.alt}
+                    width="1440"
+                    height="1080"
+                    loading="lazy"
+                  />
                   <span>{service.number}</span>
                 </div>
                 <div className="service-copy">
                   <h3>{service.title}</h3>
                   <p>{service.text}</p>
-                  <Link href="/consultas#nueva-consulta">Consultar por este servicio <span>↗</span></Link>
+                  <Link href="/consultas#nueva-consulta" data-analytics-event="service_interest" data-analytics-label={service.title}>Consultar por este servicio <span>↗</span></Link>
                 </div>
               </article>
             ))}
@@ -129,7 +173,7 @@ export default function Home() {
             <p className="eyebrow light"><span></span> Cómo trabajamos</p>
             <h2>Simple, claro y sin sorpresas.</h2>
             <p>Te acompañamos desde la primera consulta hasta la puesta en marcha del equipo.</p>
-            <Link className="button button-light" href="/consultas#nueva-consulta">Contanos qué necesitás</Link>
+            <Link className="button button-light" href="/consultas#nueva-consulta" data-analytics-event="budget_click" data-analytics-label="metodo">Contanos qué necesitás</Link>
           </div>
           <ol className="method-list">
             <li><span>01</span><div><h3>Nos contás tu necesidad</h3><p>Podés sumar fotos, medidas y tus datos de contacto de forma privada.</p></div></li>
@@ -161,7 +205,7 @@ export default function Home() {
             ))}
           </div>
           <div className="forum-actions">
-            <Link className="button button-primary" href="/consultas#nueva-consulta">Hacer una consulta</Link>
+            <Link className="button button-primary" href="/consultas#nueva-consulta" data-analytics-event="budget_click" data-analytics-label="foro">Hacer una consulta</Link>
             <Link className="inline-link" href="/consultas">Ver todas las consultas <span>→</span></Link>
           </div>
         </div>
@@ -182,7 +226,7 @@ export default function Home() {
               <h3>Hablemos ahora</h3>
               <div className="whatsapp-list">
                 {metroClima.whatsapp.map((contact) => (
-                  <a key={contact.name} href={contact.href} target="_blank" rel="noreferrer">
+                  <a key={contact.name} href={contact.href} target="_blank" rel="noreferrer" data-analytics-event="whatsapp_click" data-analytics-label={contact.name}>
                     <span>{contact.name}</span><strong>{contact.display}</strong><b>↗</b>
                   </a>
                 ))}
@@ -192,7 +236,7 @@ export default function Home() {
               <span className="contact-card-label">Canales</span>
               <h3>Instagram y consultas</h3>
               <a className="contact-line" href={metroClima.instagramUrl} target="_blank" rel="noreferrer">{metroClima.instagramHandle} ↗</a>
-              <Link className="contact-line" href="/consultas#nueva-consulta">Dejar una consulta →</Link>
+              <Link className="contact-line" href="/consultas#nueva-consulta" data-analytics-event="budget_click" data-analytics-label="contacto">Dejar una consulta →</Link>
             </article>
             <article className="contact-card">
               <span className="contact-card-label">Cobertura</span>
@@ -216,7 +260,7 @@ export default function Home() {
             <h2>Hablemos de confort.</h2>
             <p>Contanos qué necesitás y armamos una propuesta clara para tu espacio.</p>
           </div>
-          <Link className="button button-light" href="/consultas#nueva-consulta">Empezar una consulta <span>→</span></Link>
+          <Link className="button button-light" href="/consultas#nueva-consulta" data-analytics-event="budget_click" data-analytics-label="cta-final">Empezar una consulta <span>→</span></Link>
         </div>
       </section>
 

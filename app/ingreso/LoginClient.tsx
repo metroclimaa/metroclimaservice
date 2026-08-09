@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase/client";
 
 type Mode = "login" | "activate" | "recover" | "new-password";
@@ -10,6 +10,11 @@ export function LoginClient() {
   const [mode, setMode] = useState<Mode>("login");
   const [state, setState] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
+  const supportsPasskeys = useSyncExternalStore(
+    () => () => undefined,
+    () => hasSupabaseConfig && "PublicKeyCredential" in window,
+    () => false,
+  );
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -57,6 +62,24 @@ export function LoginClient() {
     if (error || !(await ensureAdmin())) {
       setState("error");
       setMessage(error ? "El correo o la contraseña no son correctos." : "Esta cuenta no está autorizada para administrar MetroClima.");
+      return;
+    }
+    window.location.replace("/panel");
+  }
+
+  async function signInWithPasskey() {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    setState("loading");
+    setMessage("");
+    const { error } = await supabase.auth.signInWithPasskey();
+    if (error || !(await ensureAdmin())) {
+      setState("error");
+      setMessage(
+        error?.code === "passkey_disabled"
+          ? "El acceso biométrico todavía no está habilitado. Ingresá con tu contraseña."
+          : "No pudimos validar la passkey. Podés ingresar con tu contraseña.",
+      );
       return;
     }
     window.location.replace("/panel");
@@ -159,6 +182,12 @@ export function LoginClient() {
             <label><span>Contraseña</span><input name="password" type="password" required autoComplete="current-password" /></label>
             <div className="login-options"><button type="button" onClick={() => { setMode("activate"); setState("idle"); setMessage(""); }}>Activar cuenta</button><button type="button" onClick={() => { setMode("recover"); setState("idle"); setMessage(""); }}>Recuperar contraseña</button></div>
             <button className="button button-primary login-button" type="submit" disabled={!hasSupabaseConfig || state === "loading"}>{state === "loading" ? "Ingresando…" : "Ingresar al panel"} <span>→</span></button>
+            {supportsPasskeys && <>
+              <div className="login-divider"><span>o</span></div>
+              <button className="button passkey-login-button" type="button" onClick={signInWithPasskey} disabled={!hasSupabaseConfig || state === "loading"}>
+                <span className="passkey-symbol">◎</span> Ingresar con Face ID / Passkey
+              </button>
+            </>}
           </form>}
 
           {mode === "activate" && <form onSubmit={activateAccount}>

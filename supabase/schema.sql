@@ -129,6 +129,17 @@ create table public.comprobantes (
   creado_en timestamptz not null default now()
 );
 
+create table public.analiticas_eventos (
+  id uuid primary key default gen_random_uuid(),
+  event_type text not null check (event_type in ('page_view', 'whatsapp_click', 'budget_click', 'service_interest')),
+  session_id uuid not null,
+  pathname text not null check (char_length(pathname) between 1 and 160),
+  source text not null default 'directo' check (char_length(source) between 1 and 80),
+  device_type text not null check (device_type in ('celular', 'tablet', 'computadora')),
+  label text check (label is null or char_length(label) between 1 and 120),
+  created_at timestamptz not null default now()
+);
+
 create or replace function private.actualizar_fecha_modificacion()
 returns trigger
 language plpgsql
@@ -205,6 +216,7 @@ alter table public.materiales enable row level security;
 alter table public.presupuestos enable row level security;
 alter table public.items_presupuesto enable row level security;
 alter table public.comprobantes enable row level security;
+alter table public.analiticas_eventos enable row level security;
 
 revoke all on public.consultas from anon;
 revoke all on public.admin_emails_permitidos from anon;
@@ -215,11 +227,15 @@ revoke all on public.materiales from anon;
 revoke all on public.presupuestos from anon;
 revoke all on public.items_presupuesto from anon;
 revoke all on public.comprobantes from anon;
+revoke all on public.analiticas_eventos from public, anon, authenticated;
 grant insert (categoria, titulo, consulta, nombre_publico, acepta_contacto, email, telefono, localidad)
 on public.consultas to anon;
 grant select (id, categoria, titulo, consulta, nombre_publico, creado_en)
 on public.consultas to anon;
 grant select on public.respuestas to anon;
+grant insert (event_type, session_id, pathname, source, device_type, label)
+on public.analiticas_eventos to anon;
+grant select on public.analiticas_eventos to authenticated;
 
 create policy "publico puede crear consultas"
 on public.consultas for insert
@@ -280,6 +296,19 @@ create policy "administradores gestionan comprobantes"
 on public.comprobantes for all to authenticated
 using (private.es_admin()) with check (private.es_admin());
 
+create policy "publico registra analitica limitada"
+on public.analiticas_eventos for insert
+to anon
+with check (
+  event_type in ('page_view', 'whatsapp_click', 'budget_click', 'service_interest')
+  and pathname !~ '^/(panel|ingreso)'
+);
+
+create policy "administradores ven analitica"
+on public.analiticas_eventos for select
+to authenticated
+using (private.es_admin());
+
 -- Vista pública deliberadamente limitada: no incluye correo, teléfono,
 -- localidad, estado interno ni identificadores del administrador.
 create or replace view public.consultas_publicas
@@ -317,6 +346,9 @@ create index items_presupuesto_material_idx on public.items_presupuesto (materia
 create index presupuestos_creado_por_idx on public.presupuestos (creado_por);
 create index comprobantes_presupuesto_idx on public.comprobantes (presupuesto_id);
 create index comprobantes_responsable_idx on public.comprobantes (responsable_id);
+create index analiticas_eventos_created_idx on public.analiticas_eventos (created_at desc);
+create index analiticas_eventos_type_created_idx on public.analiticas_eventos (event_type, created_at desc);
+create index analiticas_eventos_session_created_idx on public.analiticas_eventos (session_id, created_at desc);
 
 -- Cargar cada correo de administrador de forma privada en Supabase:
 -- insert into public.admin_emails_permitidos (email, nombre)
