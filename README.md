@@ -6,7 +6,8 @@ Cristian y Nicolás.
 ## Qué incluye
 
 - portada comercial cálida y responsive;
-- servicios para viviendas, countries, consorcios y empresas;
+- preinstalaciones y servicios Split, Multi Split, piso-techo y VRV/VRF;
+- matrículas, seguros de trabajo y garantía visibles en la portada;
 - foro público de consultas con respuestas oficiales de MetroClima;
 - datos de contacto separados de la publicación pública;
 - acceso privado para dos administradores mediante Supabase Auth;
@@ -16,6 +17,8 @@ Cristian y Nicolás.
 - tratamiento fiscal configurable;
 - comprobantes preparados para una futura integración con ARCA;
 - catálogo de materiales preparado para activar stock más adelante.
+- estadísticas privadas de visitas, clics y servicios consultados;
+- acceso mediante Face ID, huella o PIN con Passkeys de Supabase.
 
 ## Tecnologías
 
