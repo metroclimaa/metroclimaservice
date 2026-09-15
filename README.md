@@ -121,3 +121,5 @@ guardarlas en el repositorio.
 - enlace real de LinkedIn;
 - correo privado de la segunda cuenta administradora;
 - configuración fiscal para ARCA.
+
+<!-- Cloudflare deploy trigger: 2026-09-15 -->
