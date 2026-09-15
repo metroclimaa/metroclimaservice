@@ -10,16 +10,16 @@ export function SiteHeader({ active = "inicio" }: { active?: string }) {
           </span>
           <span className="brand-copy">
             <strong>METRO<span>CLIMA</span></strong>
-            <small>Climatización profesional</small>
+            <small>Climatización + Electricidad</small>
           </span>
         </Link>
 
         <nav className="desktop-nav" aria-label="Navegación principal">
           <Link className={active === "inicio" ? "is-active" : ""} href="/">Inicio</Link>
-          <Link href="/#servicios">Servicios</Link>
+          <Link className={active === "climatizacion" ? "is-active" : ""} href="/climatizacion">Climatización</Link>
+          <Link className={active === "electricidad" ? "is-active" : ""} href="/electricidad">Electricidad</Link>
+          <Link className={active === "trabajos" ? "is-active" : ""} href="/trabajos">Trabajos</Link>
           <Link className={active === "consultas" ? "is-active" : ""} href="/consultas">Consultas</Link>
-          <Link href="/#nosotros">Nosotros</Link>
-          <Link href="/#contacto">Contacto</Link>
         </nav>
 
         <div className="header-actions">
@@ -33,9 +33,10 @@ export function SiteHeader({ active = "inicio" }: { active?: string }) {
           <summary aria-label="Abrir menú"><span></span><span></span><span></span></summary>
           <nav aria-label="Navegación móvil">
             <Link href="/">Inicio</Link>
-            <Link href="/#servicios">Servicios</Link>
+            <Link href="/climatizacion">Climatización</Link>
+            <Link href="/electricidad">Electricidad</Link>
+            <Link href="/trabajos">Trabajos realizados</Link>
             <Link href="/consultas">Consultas</Link>
-            <Link href="/#nosotros">Nosotros</Link>
             <Link href="/#contacto">Contacto</Link>
             <Link href="/ingreso">Acceso equipo</Link>
           </nav>

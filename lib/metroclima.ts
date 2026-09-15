@@ -1,4 +1,5 @@
 export const metroClima = {
+  siteUrl: "https://metroclimaa.com.ar",
   coverage: "CABA y Gran Buenos Aires",
   instagramHandle: "@metro_climaa",
   instagramUrl: "https://www.instagram.com/metro_climaa/",

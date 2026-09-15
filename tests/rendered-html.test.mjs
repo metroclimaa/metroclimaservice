@@ -5,7 +5,7 @@ import test from "node:test";
 const developmentPreviewMeta =
   /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
 
-test("renders development preview metadata", async () => {
+test("renders the dual MetroClima experience and both specialties", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
@@ -32,10 +32,25 @@ test("renders development preview metadata", async () => {
   );
   const html = await response.text();
   assert.match(html, developmentPreviewMeta);
-  assert.match(html, /Preinstalaciones/);
-  assert.match(html, /Sistemas VRV \/ VRF/);
+  assert.match(html, /Climatización/);
+  assert.match(html, /Electricidad/);
+  assert.match(html, /Resultados que se pueden ver/);
   assert.match(html, /CABA y Gran Buenos Aires/);
   assert.match(html, /\+54 9 11 6922-1486/);
+
+  const climateResponse = await worker.fetch(new Request("http://localhost/climatizacion"), {
+    ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+  }, { waitUntil() {}, passThroughOnException() {} });
+  const climateHtml = await climateResponse.text();
+  assert.match(climateHtml, /Preinstalaciones/);
+  assert.match(climateHtml, /Sistemas VRV \/ VRF/);
+
+  const electricResponse = await worker.fetch(new Request("http://localhost/electricidad"), {
+    ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+  }, { waitUntil() {}, passThroughOnException() {} });
+  const electricHtml = await electricResponse.text();
+  assert.match(electricHtml, /Tableros y protecciones/);
+  assert.match(electricHtml, /Circuitos para climatización/);
 
   const serviceImages = [
     "servicio-preinstalacion.webp",
@@ -47,7 +62,7 @@ test("renders development preview metadata", async () => {
   ];
 
   for (const image of serviceImages) {
-    assert.match(html, new RegExp(`/${image}`));
+    assert.match(climateHtml, new RegExp(`/${image}`));
     await access(new URL(`../public/${image}`, import.meta.url));
   }
 

@@ -4,11 +4,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "MetroClima | Climatización profesional",
+    default: "MetroClima | Climatización y electricidad",
     template: "%s | MetroClima",
   },
   description:
-    "Preinstalación, instalación, mantenimiento y reparación de sistemas Split, Multi Split, piso-techo y VRV/VRF en CABA y Gran Buenos Aires.",
+    "Climatización y electricidad profesional para hogares, comercios y empresas en CABA y Gran Buenos Aires.",
   keywords: [
     "aire acondicionado",
     "instalación de aire acondicionado",
@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     "preinstalación de aire acondicionado",
     "VRV VRF",
     "Multi Split",
+    "electricista matriculado",
+    "instalaciones eléctricas",
+    "tableros eléctricos",
     "MetroClima",
   ],
   other: {

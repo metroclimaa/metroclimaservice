@@ -54,7 +54,7 @@ const seedQuestions: PublicQuestion[] = [
   },
 ];
 
-const categories = ["Todas", "Elección del equipo", "Instalación", "Mantenimiento", "Reparación", "Empresas"];
+const categories = ["Todas", "Climatización", "Electricidad", "Instalación", "Mantenimiento", "Reparación", "Empresas"];
 
 export function ConsultasClient() {
   const [questions, setQuestions] = useState<PublicQuestion[]>(seedQuestions);
@@ -129,7 +129,7 @@ export function ConsultasClient() {
             <h1>Una buena decisión empieza con una buena pregunta.</h1>
           </div>
           <div>
-            <p>Consultá sobre equipos, consumo, instalación o mantenimiento. Respondemos con criterio técnico y en un lenguaje claro.</p>
+            <p>Consultá sobre climatización, electricidad, consumo, instalación o mantenimiento. Respondemos con criterio técnico y en un lenguaje claro.</p>
             <a className="button button-light" href="#nueva-consulta">Hacer una consulta</a>
           </div>
         </div>

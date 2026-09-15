@@ -353,3 +353,7 @@ create index analiticas_eventos_session_created_idx on public.analiticas_eventos
 -- Cargar cada correo de administrador de forma privada en Supabase:
 -- insert into public.admin_emails_permitidos (email, nombre)
 -- values (lower('correo@privado.com'), 'Nombre');
+
+-- Portfolio, fotografías y reseñas verificadas.
+-- En una instalación nueva, ejecutar luego:
+-- supabase/migrations/20260915_portfolio_y_resenas.sql

@@ -1,11 +1,11 @@
 # MetroClima
 
-Sitio comercial y panel de gestión para el emprendimiento de climatización de
+Sitio comercial y panel de gestión para el emprendimiento de climatización y electricidad de
 Cristian y Nicolás.
 
 ## Qué incluye
 
-- portada comercial cálida y responsive;
+- portada dual y responsive con recorridos propios para Climatización y Electricidad;
 - preinstalaciones y servicios Split, Multi Split, piso-techo y VRV/VRF;
 - matrículas, seguros de trabajo y garantía visibles en la portada;
 - foro público de consultas con respuestas oficiales de MetroClima;
@@ -19,6 +19,10 @@ Cristian y Nicolás.
 - catálogo de materiales preparado para activar stock más adelante.
 - estadísticas privadas de visitas, clics y servicios consultados;
 - acceso mediante Face ID, huella o PIN con Passkeys de Supabase.
+- book de trabajos reales con hasta tres fotografías por caso;
+- reseñas verificadas mediante un enlace/QR único por presupuesto;
+- moderación previa de testimonios y publicación separada por rubro;
+- almacenamiento de imágenes con límite de 8 MB y políticas RLS de administrador.
 
 ## Tecnologías
 
@@ -44,6 +48,8 @@ ese modo los formularios y el panel no guardan datos reales.
 
 1. Crear un proyecto nuevo en Supabase.
 2. Ejecutar `supabase/schema.sql` desde el SQL Editor.
+   Para actualizar una instalación existente, ejecutar las migraciones de
+   `supabase/migrations` en orden.
 3. Autorizar de forma privada el correo inicial en
    `admin_emails_permitidos` (no guardarlo en GitHub).
 4. Desde `/ingreso`, elegir **Activar cuenta** para crear la contraseña y
@@ -80,6 +86,15 @@ El documento muestra:
 - subtotal, tratamiento fiscal y total;
 - responsables Cristian y Nicolás;
 - condiciones de pago y garantía.
+- rubro del trabajo y QR clickeable para la experiencia del cliente.
+
+## Trabajos y reseñas
+
+El panel usa un flujo único: presupuesto, trabajo, fotografías, reseña y
+publicación. No se cargan datos del cliente por duplicado. Las fotografías se
+guardan en el bucket público `trabajos`, pero sólo un administrador activo
+puede subirlas, reemplazarlas o eliminarlas. Las reseñas ingresan ocultas y se
+publican únicamente después de la aprobación de Cristian o Nicolás.
 
 Para un emisor monotributista se presenta "IVA no discriminado" y se prevé
 Factura C. La opción IVA 21% queda desactivada como configuración futura para un

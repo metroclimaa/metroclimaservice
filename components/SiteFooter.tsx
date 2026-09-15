@@ -8,15 +8,15 @@ export function SiteFooter() {
         <div>
           <Link className="brand brand-footer" href="/">
             <span className="brand-mark"><img src="/metroclima-logo.png" alt="" /></span>
-            <span className="brand-copy"><strong>METRO<span>CLIMA</span></strong><small>Climatización profesional</small></span>
+            <span className="brand-copy"><strong>METRO<span>CLIMA</span></strong><small>Climatización + Electricidad</small></span>
           </Link>
-          <p>Climatización profesional con seguros vigentes, personal matriculado y atención directa de quienes realizan el trabajo.</p>
+          <p>Climatización y electricidad con seguros vigentes, personal matriculado y atención directa de quienes realizan el trabajo.</p>
         </div>
         <div>
           <h3>Servicios</h3>
-          <Link href="/#servicios">Preinstalaciones</Link>
-          <Link href="/#servicios">Split y Multi Split</Link>
-          <Link href="/#servicios">Piso-techo y VRV/VRF</Link>
+          <Link href="/climatizacion">Climatización</Link>
+          <Link href="/electricidad">Electricidad</Link>
+          <Link href="/trabajos">Trabajos realizados</Link>
         </div>
         <div>
           <h3>Contacto</h3>

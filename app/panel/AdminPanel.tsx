@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { metroClima } from "@/lib/metroclima";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase/client";
 
-type Tab = "resumen" | "consultas" | "estadisticas" | "presupuestos" | "comprobantes" | "clientes" | "materiales" | "equipo";
+type Tab = "resumen" | "consultas" | "presupuestos" | "trabajos" | "clientes" | "materiales" | "comprobantes" | "estadisticas" | "equipo";
 type Line = { id: number; description: string; quantity: number; unitPrice: number };
 type Profile = { id: string; nombre: string; activo: boolean };
 type Answer = { id: string; respuesta: string; publica: boolean; creado_en: string; autor_id: string };
@@ -51,7 +52,32 @@ type Budget = {
   estado: string;
   creado_en: string;
   validez_dias: number;
+  rubro: "climatizacion" | "electricidad";
+  review_token: string;
   clientes: { nombre_razon_social: string; localidad: string | null } | null;
+};
+type WorkImage = { id: string; trabajo_id: string; storage_path: string; orden: number; alt: string };
+type Work = {
+  id: string;
+  presupuesto_id: string;
+  titulo_publico: string;
+  resumen: string;
+  localidad_publica: string | null;
+  fecha_realizacion: string | null;
+  publicado: boolean;
+  destacado: boolean;
+  trabajo_imagenes: WorkImage[];
+  presupuestos: { numero: number; titulo: string; rubro: "climatizacion" | "electricidad"; review_token: string; clientes: { nombre_razon_social: string } | null } | null;
+};
+type CustomerReview = {
+  id: string;
+  presupuesto_id: string;
+  nombre_publico: string;
+  puntuacion: number;
+  comentario: string;
+  aprobada: boolean;
+  creado_en: string;
+  presupuestos: { numero: number; titulo: string } | null;
 };
 type Invoice = {
   id: string;
@@ -96,6 +122,8 @@ const statusLabels: Record<string, string> = {
   aceptado: "Aceptado",
   rechazado: "Rechazado",
   vencido: "Vencido",
+  publicado: "Publicado",
+  publicada: "Publicada",
 };
 
 function labelStatus(value: string) {
@@ -123,6 +151,8 @@ export function AdminPanel() {
   const [clients, setClients] = useState<Client[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [works, setWorks] = useState<Work[]>([]);
+  const [reviews, setReviews] = useState<CustomerReview[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [allowedAdmins, setAllowedAdmins] = useState<AllowedAdmin[]>([]);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
@@ -132,24 +162,28 @@ export function AdminPanel() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     const analyticsSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const [questionResult, clientResult, materialResult, budgetResult, invoiceResult, adminResult, analyticsResult, totalViewsResult] = await Promise.all([
+    const [questionResult, clientResult, materialResult, budgetResult, workResult, reviewResult, invoiceResult, adminResult, analyticsResult, totalViewsResult] = await Promise.all([
       supabase.from("consultas").select("*,respuestas(id,respuesta,publica,creado_en,autor_id)").order("creado_en", { ascending: false }),
       supabase.from("clientes").select("id,tipo,nombre_razon_social,telefono,email,localidad,direccion").order("nombre_razon_social"),
       supabase.from("materiales").select("id,codigo,nombre,unidad,costo_referencia,controla_stock,stock_actual,stock_minimo,activo").eq("activo", true).order("nombre"),
-      supabase.from("presupuestos").select("id,numero,titulo,total,estado,creado_en,validez_dias,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
+      supabase.from("presupuestos").select("id,numero,titulo,total,estado,creado_en,validez_dias,rubro,review_token,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
+      supabase.from("trabajos").select("id,presupuesto_id,titulo_publico,resumen,localidad_publica,fecha_realizacion,publicado,destacado,trabajo_imagenes(id,trabajo_id,storage_path,orden,alt),presupuestos(numero,titulo,rubro,review_token,clientes(nombre_razon_social))").order("creado_en", { ascending: false }),
+      supabase.from("resenas_clientes").select("id,presupuesto_id,nombre_publico,puntuacion,comentario,aprobada,creado_en,presupuestos(numero,titulo)").order("creado_en", { ascending: false }),
       supabase.from("comprobantes").select("id,tipo,punto_venta,numero,total,estado,emitido_en,creado_en,clientes(nombre_razon_social)").order("creado_en", { ascending: false }),
       supabase.from("admin_emails_permitidos").select("email,nombre,activo").order("nombre"),
       supabase.from("analiticas_eventos").select("id,event_type,session_id,pathname,source,device_type,label,created_at").gte("created_at", analyticsSince).order("created_at", { ascending: true }),
       supabase.from("analiticas_eventos").select("id", { count: "exact", head: true }).eq("event_type", "page_view"),
     ]);
 
-    const firstError = [questionResult, clientResult, materialResult, budgetResult, invoiceResult, adminResult, analyticsResult, totalViewsResult].find((result) => result.error)?.error;
+    const firstError = [questionResult, clientResult, materialResult, budgetResult, workResult, reviewResult, invoiceResult, adminResult, analyticsResult, totalViewsResult].find((result) => result.error)?.error;
     if (firstError) throw firstError;
 
     setConsultations((questionResult.data ?? []) as Consultation[]);
     setClients((clientResult.data ?? []) as Client[]);
     setMaterials((materialResult.data ?? []) as Material[]);
     setBudgets((budgetResult.data ?? []) as unknown as Budget[]);
+    setWorks((workResult.data ?? []) as unknown as Work[]);
+    setReviews((reviewResult.data ?? []) as unknown as CustomerReview[]);
     setInvoices((invoiceResult.data ?? []) as unknown as Invoice[]);
     setAllowedAdmins((adminResult.data ?? []) as AllowedAdmin[]);
     setAnalyticsEvents((analyticsResult.data ?? []) as AnalyticsEvent[]);
@@ -159,22 +193,23 @@ export function AdminPanel() {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
+    const client = supabase;
 
     let mounted = true;
     async function start() {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await client.auth.getSession();
       const session = sessionData.session;
       if (!session) {
         window.location.replace("/ingreso");
         return;
       }
-      const { data: ownProfile, error } = await supabase
+      const { data: ownProfile, error } = await client
         .from("perfiles")
         .select("id,nombre,activo")
         .eq("id", session.user.id)
         .maybeSingle();
       if (error || !ownProfile?.activo) {
-        await supabase.auth.signOut();
+        await client.auth.signOut();
         window.location.replace("/ingreso");
         return;
       }
@@ -191,7 +226,7 @@ export function AdminPanel() {
     }
     void start();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") window.location.replace("/ingreso");
     });
     return () => {
@@ -225,14 +260,16 @@ export function AdminPanel() {
   if (fatalError || !profile) return <main className="admin-loading admin-error"><img src="/metroclima-logo.png" alt="MetroClima" /><h1>No pudimos abrir el panel</h1><p>{fatalError}</p><Link className="button button-primary" href="/ingreso">Volver al ingreso</Link></main>;
 
   const pendingCount = consultations.filter((item) => item.estado === "pendiente").length;
+  const pendingReviews = reviews.filter((item) => !item.aprobada).length;
   const navItems: { id: Tab; label: string; mark: string; count?: number }[] = [
     { id: "resumen", label: "Resumen", mark: "⌂" },
     { id: "consultas", label: "Consultas", mark: "?", count: pendingCount || undefined },
-    { id: "estadisticas", label: "Estadísticas", mark: "↗" },
     { id: "presupuestos", label: "Presupuestos", mark: "$" },
-    { id: "comprobantes", label: "Comprobantes", mark: "▤" },
+    { id: "trabajos", label: "Trabajos y reseñas", mark: "▦", count: pendingReviews || undefined },
     { id: "clientes", label: "Clientes", mark: "◎" },
     { id: "materiales", label: "Materiales", mark: "◇" },
+    { id: "comprobantes", label: "Comprobantes", mark: "▤" },
+    { id: "estadisticas", label: "Estadísticas", mark: "↗" },
     { id: "equipo", label: "Equipo y accesos", mark: "⚙" },
   ];
 
@@ -244,10 +281,10 @@ export function AdminPanel() {
           <span className="brand-copy"><strong>METRO<span>CLIMA</span></strong><small>Panel de gestión</small></span>
         </Link>
         <nav>
-          <p>Principal</p>
-          {navItems.slice(0, 5).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}{item.count ? <b>{item.count}</b> : null}</button>)}
-          <p>Organización</p>
-          {navItems.slice(5).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}
+          <p>Flujo comercial</p>
+          {navItems.slice(0, 4).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}{item.count ? <b>{item.count}</b> : null}</button>)}
+          <p>Administración</p>
+          {navItems.slice(4).map((item) => <button key={item.id} className={tab === item.id ? "is-active" : ""} onClick={() => selectTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}
         </nav>
         <div className="admin-user">
           <span>{initials(profile.nombre)}</span><div><strong>{profile.nombre}</strong><small>Administrador</small></div><button onClick={signOut} aria-label="Cerrar sesión">↪</button>
@@ -264,11 +301,12 @@ export function AdminPanel() {
         <div className="admin-content">
           {tab === "resumen" && <Dashboard profile={profile} consultations={consultations} budgets={budgets} invoices={invoices} onNavigate={selectTab} />}
           {tab === "consultas" && <Questions consultations={consultations} userId={userId} onRefresh={refresh} />}
-          {tab === "estadisticas" && <Analytics events={analyticsEvents} totalViews={totalViews} />}
           {tab === "presupuestos" && <Budgets budgets={budgets} clients={clients} userId={userId} onRefresh={refresh} />}
-          {tab === "comprobantes" && <Invoices invoices={invoices} />}
+          {tab === "trabajos" && <Works works={works} reviews={reviews} budgets={budgets} userId={userId} onRefresh={refresh} />}
           {tab === "clientes" && <Clients clients={clients} onRefresh={refresh} />}
           {tab === "materiales" && <Materials materials={materials} onRefresh={refresh} />}
+          {tab === "comprobantes" && <Invoices invoices={invoices} />}
+          {tab === "estadisticas" && <Analytics events={analyticsEvents} totalViews={totalViews} />}
           {tab === "equipo" && <TeamAccess admins={allowedAdmins} onRefresh={refresh} />}
           {notice && <div className="admin-toast" role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
         </div>
@@ -455,14 +493,28 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   const [builder, setBuilder] = useState(false);
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
+  const [rubro, setRubro] = useState<"climatizacion" | "electricidad">("climatizacion");
+  const [reviewToken, setReviewToken] = useState("");
+  const [savedBudgetId, setSavedBudgetId] = useState("");
+  const [savedBudgetNumber, setSavedBudgetNumber] = useState<number | null>(null);
   const [validity, setValidity] = useState(15);
   const [taxMode, setTaxMode] = useState("monotributo_iva_no_discriminado");
-  const [paymentTerms, setPaymentTerms] = useState(metroClima.paymentMethods);
-  const [warrantyTerms, setWarrantyTerms] = useState(metroClima.warranty);
+  const [paymentTerms, setPaymentTerms] = useState<string>(metroClima.paymentMethods);
+  const [warrantyTerms, setWarrantyTerms] = useState<string>(metroClima.warranty);
   const [labor, setLabor] = useState<Line[]>([{ id: 1, description: "Instalación estándar de equipo split", quantity: 1, unitPrice: 0 }]);
   const [materialLines, setMaterialLines] = useState<Line[]>([{ id: 2, description: "Kit de instalación", quantity: 1, unitPrice: 0 }]);
   const [saving, setSaving] = useState(false);
   const selectedClient = clients.find((item) => item.id === clientId);
+  const reviewUrl = savedBudgetId && savedBudgetNumber
+    ? `${metroClima.siteUrl}/experiencia?presupuesto=${savedBudgetId}&token=${reviewToken}&numero=${savedBudgetNumber}&rubro=${rubro}`
+    : "";
+
+  function startBudget() {
+    setReviewToken(crypto.randomUUID());
+    setSavedBudgetId("");
+    setSavedBudgetNumber(null);
+    setBuilder(true);
+  }
 
   const totals = useMemo(() => {
     const laborTotal = labor.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
@@ -495,6 +547,8 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     const { data, error } = await supabase.from("presupuestos").insert({
       cliente_id: clientId,
       titulo: title.trim(),
+      rubro,
+      review_token: reviewToken || crypto.randomUUID(),
       tratamiento_fiscal: taxMode,
       subtotal_mano_obra: totals.laborTotal,
       subtotal_materiales: totals.materialsTotal,
@@ -505,7 +559,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       garantia: warrantyTerms,
       creado_por: userId,
       estado: "borrador",
-    }).select("id").single();
+    }).select("id,numero,review_token").single();
     if (error || !data) {
       setSaving(false);
       await onRefresh("No pudimos guardar el presupuesto.");
@@ -523,9 +577,10 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       return;
     }
     setSaving(false);
-    setBuilder(false);
-    setTitle("");
-    await onRefresh("✓ Presupuesto guardado correctamente");
+    setReviewToken(data.review_token);
+    setSavedBudgetId(data.id);
+    setSavedBudgetNumber(Number(data.numero));
+    await onRefresh("✓ Presupuesto guardado. Ya podés imprimirlo con su QR único.");
   }
 
   async function updateBudgetState(id: string, estado: string) {
@@ -534,19 +589,20 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   }
 
   if (!builder) return <>
-    <PageTitle eyebrow="Gestión comercial" title="Presupuestos" text="Documentos guardados con mano de obra y materiales separados." action={<button className="admin-primary" onClick={() => setBuilder(true)}>＋ Crear presupuesto</button>} />
+    <PageTitle eyebrow="Gestión comercial" title="Presupuestos" text="Un único documento conecta cliente, trabajo, imágenes y reseña." action={<button className="admin-primary" onClick={startBudget}>＋ Crear presupuesto</button>} />
     <section className="admin-card recent-budgets full-list">
       <div className="admin-card-head"><div><h2>Todos los presupuestos</h2><p>{budgets.length} documentos guardados</p></div><span className="connected-chip">● Datos en tiempo real</span></div>
-      {budgets.length ? <div className="admin-table"><div className="table-row table-head"><span>Número</span><span>Cliente</span><span>Trabajo</span><span>Total</span><span>Estado</span><span>Fecha</span></div>{budgets.map((row) => <div className="table-row" key={row.id}><span>PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span><span><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b></span><span>{row.titulo}</span><span><b>{money.format(Number(row.total))}</b></span><span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span><span>{shortDate.format(new Date(row.creado_en))}</span></div>)}</div> : <EmptyState title="Todavía no hay presupuestos" text="Creá el primero y quedará guardado en esta lista." />}
+      {budgets.length ? <div className="admin-table budgets-table"><div className="table-row table-head"><span>Número</span><span>Cliente</span><span>Trabajo</span><span>Rubro</span><span>Total</span><span>Estado</span><span>Reseña</span></div>{budgets.map((row) => <div className="table-row" key={row.id}><span>PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span><span><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b></span><span>{row.titulo}</span><span>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</span><span><b>{money.format(Number(row.total))}</b></span><span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span><span><a className="table-action" href={`${metroClima.siteUrl}/experiencia?presupuesto=${row.id}&token=${row.review_token}&numero=${row.numero}&rubro=${row.rubro}`} target="_blank" rel="noreferrer">Abrir ↗</a></span></div>)}</div> : <EmptyState title="Todavía no hay presupuestos" text="Creá el primero y quedará conectado con su futuro trabajo y reseña." />}
     </section>
   </>;
 
   return <>
-    <PageTitle eyebrow="Nuevo documento" title="Crear presupuesto" text="Completá los datos y revisá el documento membretado antes de guardarlo." action={<button className="admin-secondary" onClick={() => setBuilder(false)}>← Volver al listado</button>} />
+    <PageTitle eyebrow="Nuevo documento" title={savedBudgetNumber ? `Presupuesto PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "Crear presupuesto"} text={savedBudgetNumber ? "Guardado y listo para imprimir con su enlace de experiencia." : "Completá los datos y revisá el documento membretado antes de guardarlo."} action={<button className="admin-secondary" onClick={() => { setBuilder(false); setTitle(""); }}>← Volver al listado</button>} />
     <div className="budget-builder-grid">
       <section className="admin-card budget-form">
         <div className="form-section-title"><span>01</span><div><h2>Cliente y trabajo</h2><p>Información principal del documento</p></div></div>
-        <div className="form-row two"><label><span>Cliente</span><select value={clientId} onChange={(event) => setClientId(event.target.value)} required><option value="">Seleccionar cliente</option>{clients.map((client) => <option value={client.id} key={client.id}>{client.nombre_razon_social}</option>)}</select></label><label><span>Validez</span><select value={validity} onChange={(event) => setValidity(Number(event.target.value))}><option value={7}>7 días</option><option value={15}>15 días</option><option value={30}>30 días</option></select></label></div>
+        <div className="form-row two"><label><span>Cliente</span><select value={clientId} onChange={(event) => setClientId(event.target.value)} required><option value="">Seleccionar cliente</option>{clients.map((client) => <option value={client.id} key={client.id}>{client.nombre_razon_social}</option>)}</select></label><label><span>Rubro</span><select value={rubro} onChange={(event) => setRubro(event.target.value as "climatizacion" | "electricidad")}><option value="climatizacion">Climatización</option><option value="electricidad">Electricidad</option></select></label></div>
+        <label><span>Validez</span><select value={validity} onChange={(event) => setValidity(Number(event.target.value))}><option value={7}>7 días</option><option value={15}>15 días</option><option value={30}>30 días</option></select></label>
         {!clients.length && <p className="inline-warning">Primero cargá un cliente desde el módulo Clientes.</p>}
         <label><span>Trabajo / descripción general</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej. Instalación de equipo split en living" /></label>
         <div className="form-section-title"><span>02</span><div><h2>Mano de obra</h2><p>Servicios realizados por MetroClima</p></div></div>
@@ -559,17 +615,22 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <div className="form-section-title"><span>05</span><div><h2>Condiciones comerciales</h2><p>Información visible para el cliente</p></div></div>
         <label><span>Condiciones de pago</span><input value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} /></label>
         <label><span>Garantía</span><input value={warrantyTerms} onChange={(event) => setWarrantyTerms(event.target.value)} /></label>
-        <div className="builder-actions"><button type="button" onClick={() => window.print()}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving}>{saving ? "Guardando…" : "Guardar presupuesto"}</button></div>
+        {savedBudgetNumber && <div className="saved-document-note"><span>✓</span><p><strong>Documento guardado</strong>El QR ya quedó vinculado a este presupuesto.</p></div>}
+        <div className="builder-actions"><button type="button" onClick={() => window.print()} disabled={!savedBudgetNumber}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving || Boolean(savedBudgetNumber)}>{saving ? "Guardando…" : savedBudgetNumber ? "✓ Guardado" : "Guardar presupuesto"}</button></div>
       </section>
       <aside className="budget-preview">
         <div className="document-paper">
-          <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización profesional</small></div></div><div><b>PRESUPUESTO</b><span>NUEVO</span></div></header>
+          <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b><span>{savedBudgetNumber ? `PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "NUEVO"}</span></div></header>
           <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
           <h3>{title || "Descripción del trabajo"}</h3>
           <div className="document-section"><b>MANO DE OBRA</b>{labor.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
           <div className="document-section"><b>MATERIALES</b>{materialLines.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
           <div className="document-totals"><div><span>Mano de obra</span><b>{money.format(totals.laborTotal)}</b></div><div><span>Materiales</span><b>{money.format(totals.materialsTotal)}</b></div>{totals.tax > 0 && <div><span>IVA 21%</span><b>{money.format(totals.tax)}</b></div>}<div className="grand-total"><span>TOTAL</span><b>{money.format(totals.total)}</b></div><small>{taxMode === "monotributo_iva_no_discriminado" ? "IVA no discriminado · Comprobante tipo C" : taxMode === "responsable_inscripto_iva_21" ? "IVA discriminado al 21%" : "Sin impuesto agregado"}</small></div>
           <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{paymentTerms}</strong></div><div><small>GARANTÍA</small><strong>{warrantyTerms}</strong></div></div>
+          {reviewUrl && <a className="document-review-qr" href={reviewUrl} target="_blank" rel="noreferrer">
+            <QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" />
+            <span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá o hacé clic acá para contarnos tu experiencia.</strong><em>Tu comentario se vincula únicamente con este presupuesto.</em></span>
+          </a>}
           <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong></div></footer>
         </div>
         <p>Vista previa · Usá “Imprimir / PDF” para descargarla.</p>
@@ -580,6 +641,177 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
 
 function LineEditor({ kind, lines, onUpdate, onAdd, onRemove }: { kind: "labor" | "materials"; lines: Line[]; onUpdate: (kind: "labor" | "materials", id: number, field: keyof Line, value: string) => void; onAdd: (kind: "labor" | "materials") => void; onRemove: (kind: "labor" | "materials", id: number) => void }) {
   return <div className="line-editor"><div className="line-head"><span>Descripción</span><span>Cant.</span><span>Precio unit.</span><span>Total</span><span></span></div>{lines.map((line) => <div className="line-row" key={line.id}><input value={line.description} onChange={(event) => onUpdate(kind, line.id, "description", event.target.value)} placeholder="Descripción" /><input type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => onUpdate(kind, line.id, "quantity", event.target.value)} /><input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => onUpdate(kind, line.id, "unitPrice", event.target.value)} /><b>{money.format(line.quantity * line.unitPrice)}</b><button type="button" onClick={() => onRemove(kind, line.id)} aria-label="Eliminar ítem">×</button></div>)}<button className="add-line" type="button" onClick={() => onAdd(kind)}>＋ Agregar ítem</button></div>;
+}
+
+function Works({ works, reviews, budgets, userId, onRefresh }: { works: Work[]; reviews: CustomerReview[]; budgets: Budget[]; userId: string; onRefresh: (message?: string) => Promise<void> }) {
+  const [showForm, setShowForm] = useState(false);
+  const [selectedBudgetId, setSelectedBudgetId] = useState("");
+  const [publicTitle, setPublicTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+  const availableBudgets = budgets.filter((budget) => !works.some((work) => work.presupuesto_id === budget.id));
+  const selectedBudget = budgets.find((budget) => budget.id === selectedBudgetId);
+  const pendingReviews = reviews.filter((review) => !review.aprobada);
+
+  function chooseBudget(id: string) {
+    const budget = budgets.find((item) => item.id === id);
+    setSelectedBudgetId(id);
+    setPublicTitle(budget?.titulo ?? "");
+  }
+
+  async function uploadImages(workId: string, files: File[], startAt = 0, altTitle = publicTitle) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return "No hay conexión con el almacenamiento.";
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+      const path = `${workId}/${startAt + index + 1}-${crypto.randomUUID()}.${extension}`;
+      const upload = await supabase.storage.from("trabajos").upload(path, file, { cacheControl: "31536000", upsert: false });
+      if (upload.error) return `No pudimos subir ${file.name}.`;
+      const metadata = await supabase.from("trabajo_imagenes").insert({
+        trabajo_id: workId,
+        storage_path: path,
+        orden: startAt + index + 1,
+        alt: `${altTitle || "Trabajo realizado por MetroClima"} · imagen ${startAt + index + 1}`,
+      });
+      if (metadata.error) {
+        await supabase.storage.from("trabajos").remove([path]);
+        return `La imagen ${file.name} no pudo vincularse al trabajo.`;
+      }
+    }
+    return "";
+  }
+
+  async function createWork(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const photos = form.getAll("fotos").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+    if (!selectedBudgetId || photos.length < 1 || photos.length > 3) {
+      await onRefresh("Elegí un presupuesto y cargá entre 1 y 3 imágenes.");
+      return;
+    }
+    setSaving(true);
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const { data, error } = await supabase.from("trabajos").insert({
+      presupuesto_id: selectedBudgetId,
+      titulo_publico: publicTitle.trim(),
+      resumen: String(form.get("resumen") || "").trim(),
+      localidad_publica: String(form.get("localidad") || "").trim() || null,
+      fecha_realizacion: String(form.get("fecha") || "") || null,
+      publicado: false,
+      destacado: false,
+      creado_por: userId,
+    }).select("id").single();
+    if (error || !data) {
+      setSaving(false);
+      await onRefresh("No pudimos crear el trabajo. Revisá los datos.");
+      return;
+    }
+    const uploadError = await uploadImages(data.id, photos);
+    setSaving(false);
+    setShowForm(false);
+    setSelectedBudgetId("");
+    setPublicTitle("");
+    await onRefresh(uploadError || "✓ Trabajo creado como borrador. Revisalo y publicalo cuando esté listo.");
+  }
+
+  async function addPhotos(work: Work, files: FileList | null) {
+    const additions = files ? Array.from(files) : [];
+    const current = work.trabajo_imagenes.length;
+    if (!additions.length || current + additions.length > 3) {
+      await onRefresh(`Este trabajo admite ${3 - current} imagen${3 - current === 1 ? "" : "es"} más.`);
+      return;
+    }
+    const error = await uploadImages(work.id, additions, current, work.titulo_publico);
+    await onRefresh(error || "✓ Imágenes agregadas al trabajo.");
+  }
+
+  async function deletePhoto(image: WorkImage) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const storageResult = await supabase.storage.from("trabajos").remove([image.storage_path]);
+    if (storageResult.error) {
+      await onRefresh("No pudimos eliminar la imagen del almacenamiento.");
+      return;
+    }
+    const { error } = await supabase.from("trabajo_imagenes").delete().eq("id", image.id);
+    if (!error) await onRefresh("✓ Imagen eliminada.");
+  }
+
+  async function togglePublication(work: Work) {
+    if (!work.publicado && work.trabajo_imagenes.length === 0) {
+      await onRefresh("Cargá al menos una imagen antes de publicar.");
+      return;
+    }
+    const { error } = await getSupabaseBrowserClient()!.from("trabajos").update({ publicado: !work.publicado }).eq("id", work.id);
+    if (!error) await onRefresh(work.publicado ? "✓ Trabajo ocultado del sitio." : "✓ Trabajo publicado en el book.");
+  }
+
+  async function toggleFeatured(work: Work) {
+    const { error } = await getSupabaseBrowserClient()!.from("trabajos").update({ destacado: !work.destacado }).eq("id", work.id);
+    if (!error) await onRefresh(work.destacado ? "✓ Trabajo quitado de destacados." : "✓ Trabajo destacado en la portada.");
+  }
+
+  async function moderateReview(review: CustomerReview, approved: boolean) {
+    const { error } = await getSupabaseBrowserClient()!.from("resenas_clientes").update({
+      aprobada: approved,
+      moderada_por: userId,
+      moderada_en: new Date().toISOString(),
+    }).eq("id", review.id);
+    if (!error) await onRefresh(approved ? "✓ Reseña aprobada para el book." : "✓ Reseña ocultada del sitio.");
+  }
+
+  function publicImage(path: string) {
+    return getSupabaseBrowserClient()?.storage.from("trabajos").getPublicUrl(path).data.publicUrl ?? "";
+  }
+
+  async function copyReviewLink(work: Work) {
+    if (!work.presupuestos) return;
+    const { numero, rubro, review_token: token } = work.presupuestos;
+    await navigator.clipboard.writeText(`${metroClima.siteUrl}/experiencia?presupuesto=${work.presupuesto_id}&token=${token}&numero=${numero}&rubro=${rubro}`);
+    await onRefresh("✓ Enlace de experiencia copiado.");
+  }
+
+  return <>
+    <PageTitle eyebrow="Contenido integrado" title="Trabajos y reseñas" text="Cada caso nace de un presupuesto: cliente, rubro, fotos y comentario quedan vinculados sin volver a cargar la misma información." action={<button className="admin-primary" onClick={() => setShowForm(!showForm)}>{showForm ? "Cerrar" : "＋ Cargar trabajo"}</button>} />
+
+    <div className="work-flow-strip"><span>01 Presupuesto</span><b>→</b><span>02 Trabajo + fotos</span><b>→</b><span>03 Reseña por QR</span><b>→</b><span>04 Publicación</span></div>
+
+    {showForm && <form className="admin-card work-form" onSubmit={createWork}>
+      <div className="admin-card-head"><div><h2>Nuevo trabajo documentado</h2><p>Elegí el presupuesto base; el cliente y el rubro se vinculan automáticamente.</p></div><span className="connected-chip">Máximo 3 fotos</span></div>
+      <div className="form-row two">
+        <label><span>Presupuesto relacionado</span><select value={selectedBudgetId} onChange={(event) => chooseBudget(event.target.value)} required><option value="">Seleccionar presupuesto</option>{availableBudgets.map((budget) => <option key={budget.id} value={budget.id}>PRE-{String(budget.numero).padStart(4, "0")} · {budget.clientes?.nombre_razon_social || "Sin cliente"} · {budget.titulo}</option>)}</select></label>
+        <label><span>Rubro vinculado</span><input value={selectedBudget ? selectedBudget.rubro === "electricidad" ? "Electricidad" : "Climatización" : "Se completa desde el presupuesto"} disabled /></label>
+      </div>
+      {!availableBudgets.length && <p className="inline-warning">Todos los presupuestos ya tienen un trabajo asociado o todavía no hay presupuestos.</p>}
+      <label><span>Título público</span><input value={publicTitle} onChange={(event) => setPublicTitle(event.target.value)} required minLength={6} maxLength={140} placeholder="Ej. Renovación eléctrica de local comercial" /></label>
+      <label><span>Resumen del trabajo</span><textarea name="resumen" required minLength={20} maxLength={1200} rows={4} placeholder="Qué se encontró, qué se hizo y qué resultado obtuvo el cliente." /></label>
+      <div className="form-row two"><label><span>Localidad pública (sin dirección)</span><input name="localidad" maxLength={100} placeholder="Ej. CABA" /></label><label><span>Fecha de realización</span><input name="fecha" type="date" /></label></div>
+      <label className="photo-drop"><span>Imágenes reales del trabajo</span><input name="fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple required /><small>Elegí entre 1 y 3 archivos JPG, PNG o WebP. Máximo 8 MB por imagen.</small></label>
+      <button className="admin-primary" disabled={saving || !availableBudgets.length}>{saving ? "Creando y subiendo…" : "Crear trabajo como borrador"}</button>
+    </form>}
+
+    <div className="works-admin-grid">
+      <section className="admin-card works-library">
+        <div className="admin-card-head"><div><h2>Book de trabajos</h2><p>{works.length} casos vinculados</p></div><Link href="/trabajos" target="_blank">Ver página pública ↗</Link></div>
+        {works.length ? <div className="work-admin-list">{works.map((work) => <article key={work.id}>
+          <div className="work-thumb-strip">{[...work.trabajo_imagenes].sort((a, b) => a.orden - b.orden).map((image) => <figure key={image.id}><img src={publicImage(image.storage_path)} alt={image.alt} /><button onClick={() => deletePhoto(image)} aria-label="Eliminar imagen">×</button></figure>)}{work.trabajo_imagenes.length < 3 && <label className="add-work-photo">＋<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => addPhotos(work, event.target.files)} /></label>}</div>
+          <div className="work-admin-copy"><div><span>{work.presupuestos?.rubro === "electricidad" ? "Electricidad" : "Climatización"}</span><Status value={work.publicado ? "Publicado" : "Borrador"} /></div><h3>{work.titulo_publico}</h3><p>{work.resumen}</p><small>PRE-{String(work.presupuestos?.numero ?? 0).padStart(4, "0")} · {work.presupuestos?.clientes?.nombre_razon_social || "Cliente"}</small></div>
+          <div className="work-admin-actions"><button onClick={() => togglePublication(work)}>{work.publicado ? "Ocultar" : "Publicar"}</button><button onClick={() => toggleFeatured(work)}>{work.destacado ? "Quitar destacado" : "Destacar"}</button>{work.presupuestos?.review_token && <button onClick={() => copyReviewLink(work)}>Copiar enlace QR</button>}</div>
+        </article>)}</div> : <EmptyState title="Todavía no hay trabajos cargados" text="Creá un presupuesto y usalo como base para subir las primeras fotos reales." />}
+      </section>
+
+      <section className="admin-card review-inbox">
+        <div className="admin-card-head"><div><h2>Reseñas de clientes</h2><p>{pendingReviews.length} pendientes de revisión</p></div><span className="connected-chip">No se publican solas</span></div>
+        {reviews.length ? <div className="review-admin-list">{reviews.map((review) => <article key={review.id}>
+          <div><span>{"★".repeat(review.puntuacion)}{"☆".repeat(5 - review.puntuacion)}</span><Status value={review.aprobada ? "Publicada" : "Pendiente"} /></div>
+          <blockquote>“{review.comentario}”</blockquote>
+          <p><strong>{review.nombre_publico}</strong><small>PRE-{String(review.presupuestos?.numero ?? 0).padStart(4, "0")} · {review.presupuestos?.titulo}</small></p>
+          <button onClick={() => moderateReview(review, !review.aprobada)}>{review.aprobada ? "Ocultar reseña" : "Aprobar y publicar"}</button>
+        </article>)}</div> : <EmptyState title="Todavía no llegaron reseñas" text="El cliente puede enviarla desde el QR o el enlace clickeable de su presupuesto." />}
+      </section>
+    </div>
+  </>;
 }
 
 function Invoices({ invoices }: { invoices: Invoice[] }) {
