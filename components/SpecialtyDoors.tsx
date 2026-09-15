@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import "./DoorEffects.css";
 
 type Door = "climate" | "electric";
 
