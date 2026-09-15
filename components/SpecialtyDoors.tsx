@@ -27,7 +27,7 @@ export function SpecialtyDoors() {
       </div>
       <div className="door-fx door-fx-electric" aria-hidden="true">
         <div className="power-symbol">ϟ</div>
-        <span className="electric-flash"/><i className="spark s1"/><i className="spark s2"/><i className="spark s3"/><i className="spark s4"/>
+        <span className="energy-line"/>
       </div>
       <button className="moon-half moon-climate" type="button" onClick={() => openDoor("climate")} aria-label="Abrir Climatización">
         <div className="moon-content"><small>Confort térmico</small><h2>Climatización</h2><span>Ver servicios →</span></div>
