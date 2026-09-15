@@ -12,7 +12,10 @@ export function SpecialtyDoors() {
   function openDoor(kind: Door) {
     if (opening) return;
     setOpening(kind);
-    window.setTimeout(() => router.push(kind === "climate" ? "/climatizacion" : "/electricidad"), 760);
+    // La pausa es intencional: permite ver la apertura y el efecto antes de navegar.
+    window.setTimeout(() => {
+      router.push(kind === "climate" ? "/climatizacion" : "/electricidad");
+    }, 900);
   }
 
   return (
