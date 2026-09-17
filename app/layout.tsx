@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { AdminUsabilityFixes } from "@/components/AdminUsabilityFixes";
+import { WorkQuickEditor } from "@/components/WorkQuickEditor";
 import "./globals.css";
 import "./compact-home.css";
 import "./admin-mobile-fixes.css";
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body><AnalyticsTracker /><AdminUsabilityFixes />{children}</body>
+      <body><AnalyticsTracker /><AdminUsabilityFixes /><WorkQuickEditor />{children}</body>
     </html>
   );
 }
