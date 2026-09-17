@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { AdminUsabilityFixes } from "@/components/AdminUsabilityFixes";
 import "./globals.css";
 import "./compact-home.css";
+import "./admin-mobile-fixes.css";
 
 export const metadata: Metadata = {
   title: {
@@ -34,7 +36,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body><AnalyticsTracker />{children}</body>
+      <body><AnalyticsTracker /><AdminUsabilityFixes />{children}</body>
     </html>
   );
 }
