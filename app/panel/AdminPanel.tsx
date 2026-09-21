@@ -8,6 +8,8 @@ import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase/clie
 
 type Tab = "resumen" | "consultas" | "presupuestos" | "trabajos" | "clientes" | "materiales" | "comprobantes" | "estadisticas" | "equipo";
 type Line = { id: number; description: string; quantity: number; unitPrice: number };
+type BudgetMode = "simple" | "comparativo";
+type BudgetOption = "low" | "high";
 type Profile = { id: string; nombre: string; activo: boolean };
 type Answer = { id: string; respuesta: string; publica: boolean; creado_en: string; autor_id: string };
 type Consultation = {
@@ -49,6 +51,8 @@ type Budget = {
   numero: number;
   titulo: string;
   total: number;
+  total_high: number;
+  modalidad: BudgetMode;
   estado: string;
   creado_en: string;
   validez_dias: number;
@@ -111,6 +115,14 @@ type PasskeyRecord = {
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const shortDate = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric" });
 
+function calculateBudgetTotals(laborLines: Line[], materials: Line[], taxMode: string) {
+  const laborTotal = laborLines.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const materialsTotal = materials.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const subtotal = laborTotal + materialsTotal;
+  const tax = taxMode === "responsable_inscripto_iva_21" ? subtotal * 0.21 : 0;
+  return { laborTotal, materialsTotal, tax, total: subtotal + tax };
+}
+
 const statusLabels: Record<string, string> = {
   pendiente: "Pendiente",
   en_seguimiento: "En seguimiento",
@@ -166,7 +178,7 @@ export function AdminPanel() {
       supabase.from("consultas").select("*,respuestas(id,respuesta,publica,creado_en,autor_id)").order("creado_en", { ascending: false }),
       supabase.from("clientes").select("id,tipo,nombre_razon_social,telefono,email,localidad,direccion").order("nombre_razon_social"),
       supabase.from("materiales").select("id,codigo,nombre,unidad,costo_referencia,controla_stock,stock_actual,stock_minimo,activo").eq("activo", true).order("nombre"),
-      supabase.from("presupuestos").select("id,numero,titulo,total,estado,creado_en,validez_dias,rubro,review_token,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
+      supabase.from("presupuestos").select("id,numero,titulo,total,total_high,modalidad,estado,creado_en,validez_dias,rubro,review_token,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
       supabase.from("trabajos").select("id,presupuesto_id,titulo_publico,resumen,localidad_publica,fecha_realizacion,publicado,destacado,trabajo_imagenes(id,trabajo_id,storage_path,orden,alt),presupuestos(numero,titulo,rubro,review_token,clientes(nombre_razon_social))").order("creado_en", { ascending: false }),
       supabase.from("resenas_clientes").select("id,presupuesto_id,nombre_publico,puntuacion,comentario,aprobada,creado_en,presupuestos(numero,titulo)").order("creado_en", { ascending: false }),
       supabase.from("comprobantes").select("id,tipo,punto_venta,numero,total,estado,emitido_en,creado_en,clientes(nombre_razon_social)").order("creado_en", { ascending: false }),
@@ -501,8 +513,14 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   const [taxMode, setTaxMode] = useState("monotributo_iva_no_discriminado");
   const [paymentTerms, setPaymentTerms] = useState<string>(metroClima.paymentMethods);
   const [warrantyTerms, setWarrantyTerms] = useState<string>(metroClima.warranty);
+  const [mode, setMode] = useState<BudgetMode>("simple");
+  const [observations, setObservations] = useState("");
+  const [renderFile, setRenderFile] = useState<File | null>(null);
+  const [renderPreview, setRenderPreview] = useState("");
   const [labor, setLabor] = useState<Line[]>([{ id: 1, description: "Instalación estándar de equipo split", quantity: 1, unitPrice: 0 }]);
   const [materialLines, setMaterialLines] = useState<Line[]>([{ id: 2, description: "Kit de instalación", quantity: 1, unitPrice: 0 }]);
+  const [highLabor, setHighLabor] = useState<Line[]>([{ id: 3, description: "Alternativa integral de instalación", quantity: 1, unitPrice: 0 }]);
+  const [highMaterialLines, setHighMaterialLines] = useState<Line[]>([{ id: 4, description: "Materiales de alternativa integral", quantity: 1, unitPrice: 0 }]);
   const [saving, setSaving] = useState(false);
   const selectedClient = clients.find((item) => item.id === clientId);
   const reviewUrl = savedBudgetId && savedBudgetNumber
@@ -513,32 +531,48 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     setReviewToken(crypto.randomUUID());
     setSavedBudgetId("");
     setSavedBudgetNumber(null);
+    setMode("simple");
+    setObservations("");
+    chooseRender(null);
     setBuilder(true);
   }
 
-  const totals = useMemo(() => {
-    const laborTotal = labor.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const materialsTotal = materialLines.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const subtotal = laborTotal + materialsTotal;
-    const tax = taxMode === "responsable_inscripto_iva_21" ? subtotal * 0.21 : 0;
-    return { laborTotal, materialsTotal, tax, total: subtotal + tax };
-  }, [labor, materialLines, taxMode]);
+  function chooseRender(file: File | null) {
+    if (renderPreview) URL.revokeObjectURL(renderPreview);
+    setRenderFile(file);
+    setRenderPreview(file ? URL.createObjectURL(file) : "");
+  }
 
-  function updateLine(kind: "labor" | "materials", id: number, field: keyof Line, value: string) {
-    const setter = kind === "labor" ? setLabor : setMaterialLines;
+  const totals = useMemo(() => calculateBudgetTotals(labor, materialLines, taxMode), [labor, materialLines, taxMode]);
+  const highTotals = useMemo(() => calculateBudgetTotals(highLabor, highMaterialLines, taxMode), [highLabor, highMaterialLines, taxMode]);
+
+  function updateLine(option: "base" | "high", kind: "labor" | "materials", id: number, field: keyof Line, value: string) {
+    const setter = option === "high"
+      ? (kind === "labor" ? setHighLabor : setHighMaterialLines)
+      : (kind === "labor" ? setLabor : setMaterialLines);
     setter((items) => items.map((item) => item.id === id ? { ...item, [field]: field === "description" ? value : Number(value) } : item));
   }
-  function addLine(kind: "labor" | "materials") {
+  function addLine(option: "base" | "high", kind: "labor" | "materials") {
     const line = { id: Date.now(), description: "", quantity: 1, unitPrice: 0 };
-    (kind === "labor" ? setLabor : setMaterialLines)((items) => [...items, line]);
+    const setter = option === "high"
+      ? (kind === "labor" ? setHighLabor : setHighMaterialLines)
+      : (kind === "labor" ? setLabor : setMaterialLines);
+    setter((items) => [...items, line]);
   }
-  function removeLine(kind: "labor" | "materials", id: number) {
-    (kind === "labor" ? setLabor : setMaterialLines)((items) => items.filter((item) => item.id !== id));
+  function removeLine(option: "base" | "high", kind: "labor" | "materials", id: number) {
+    const setter = option === "high"
+      ? (kind === "labor" ? setHighLabor : setHighMaterialLines)
+      : (kind === "labor" ? setLabor : setMaterialLines);
+    setter((items) => items.filter((item) => item.id !== id));
   }
 
   async function saveBudget() {
     if (!clientId || !title.trim()) {
       await onRefresh("Completá el cliente y la descripción del trabajo.");
+      return;
+    }
+    if (renderFile && renderFile.size > 10 * 1024 * 1024) {
+      await onRefresh("El render supera los 10 MB. Elegí una imagen más liviana.");
       return;
     }
     const supabase = getSupabaseBrowserClient();
@@ -548,12 +582,18 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       cliente_id: clientId,
       titulo: title.trim(),
       rubro,
+      modalidad: mode,
+      observaciones: observations.trim() || null,
       review_token: reviewToken || crypto.randomUUID(),
       tratamiento_fiscal: taxMode,
       subtotal_mano_obra: totals.laborTotal,
       subtotal_materiales: totals.materialsTotal,
       iva: totals.tax,
       total: totals.total,
+      subtotal_mano_obra_high: mode === "comparativo" ? highTotals.laborTotal : 0,
+      subtotal_materiales_high: mode === "comparativo" ? highTotals.materialsTotal : 0,
+      iva_high: mode === "comparativo" ? highTotals.tax : 0,
+      total_high: mode === "comparativo" ? highTotals.total : 0,
       validez_dias: validity,
       condiciones_pago: paymentTerms,
       garantia: warrantyTerms,
@@ -566,8 +606,10 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       return;
     }
     const items = [
-      ...labor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })),
-      ...materialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: labor.length + order })),
+      ...labor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: mode === "comparativo" ? "low" : "simple", tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })),
+      ...materialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: mode === "comparativo" ? "low" : "simple", tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: labor.length + order })),
+      ...(mode === "comparativo" ? highLabor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: "high", tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })) : []),
+      ...(mode === "comparativo" ? highMaterialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: "high", tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: highLabor.length + order })) : []),
     ];
     const itemResult = items.length ? await supabase.from("items_presupuesto").insert(items) : { error: null };
     if (itemResult.error) {
@@ -576,11 +618,30 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       await onRefresh("No pudimos guardar los ítems del presupuesto.");
       return;
     }
+    if (renderFile) {
+      const extension = renderFile.type === "image/png" ? "png" : renderFile.type === "image/webp" ? "webp" : "jpg";
+      const renderPath = `${data.id}/${crypto.randomUUID()}.${extension}`;
+      const upload = await supabase.storage.from("presupuesto-renders").upload(renderPath, renderFile, { cacheControl: "3600", upsert: false });
+      if (upload.error) {
+        await supabase.from("presupuestos").delete().eq("id", data.id);
+        setSaving(false);
+        await onRefresh("No pudimos subir el render. El presupuesto no fue guardado.");
+        return;
+      }
+      const linked = await supabase.from("presupuestos").update({ render_path: renderPath }).eq("id", data.id);
+      if (linked.error) {
+        await supabase.storage.from("presupuesto-renders").remove([renderPath]);
+        await supabase.from("presupuestos").delete().eq("id", data.id);
+        setSaving(false);
+        await onRefresh("No pudimos vincular el render al presupuesto.");
+        return;
+      }
+    }
     setSaving(false);
     setReviewToken(data.review_token);
     setSavedBudgetId(data.id);
     setSavedBudgetNumber(Number(data.numero));
-    await onRefresh("✓ Presupuesto guardado. Ya podés imprimirlo con su QR único.");
+    await onRefresh(`✓ Presupuesto${mode === "comparativo" ? " LOW / HIGH" : ""} guardado. Ya podés imprimirlo con su QR único.`);
   }
 
   async function updateBudgetState(id: string, estado: string) {
@@ -592,7 +653,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     <PageTitle eyebrow="Gestión comercial" title="Presupuestos" text="Un único documento conecta cliente, trabajo, imágenes y reseña." action={<button className="admin-primary" onClick={startBudget}>＋ Crear presupuesto</button>} />
     <section className="admin-card recent-budgets full-list">
       <div className="admin-card-head"><div><h2>Todos los presupuestos</h2><p>{budgets.length} documentos guardados</p></div><span className="connected-chip">● Datos en tiempo real</span></div>
-      {budgets.length ? <div className="admin-table budgets-table"><div className="table-row table-head"><span>Número</span><span>Cliente</span><span>Trabajo</span><span>Rubro</span><span>Total</span><span>Estado</span><span>Reseña</span></div>{budgets.map((row) => <div className="table-row" key={row.id}><span>PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span><span><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b></span><span>{row.titulo}</span><span>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</span><span><b>{money.format(Number(row.total))}</b></span><span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span><span><a className="table-action" href={`${metroClima.siteUrl}/experiencia?presupuesto=${row.id}&token=${row.review_token}&numero=${row.numero}&rubro=${row.rubro}`} target="_blank" rel="noreferrer">Abrir ↗</a></span></div>)}</div> : <EmptyState title="Todavía no hay presupuestos" text="Creá el primero y quedará conectado con su futuro trabajo y reseña." />}
+      {budgets.length ? <div className="admin-table budgets-table"><div className="table-row table-head"><span>Número</span><span>Cliente</span><span>Trabajo</span><span>Rubro</span><span>Total</span><span>Estado</span><span>Reseña</span></div>{budgets.map((row) => <div className="table-row" key={row.id}><span>PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span><span><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b></span><span>{row.titulo}{row.modalidad === "comparativo" && <small className="budget-comparison-chip">LOW / HIGH</small>}</span><span>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</span><span><b>{row.modalidad === "comparativo" ? `${money.format(Number(row.total))} — ${money.format(Number(row.total_high))}` : money.format(Number(row.total))}</b></span><span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span><span><a className="table-action" href={`${metroClima.siteUrl}/experiencia?presupuesto=${row.id}&token=${row.review_token}&numero=${row.numero}&rubro=${row.rubro}`} target="_blank" rel="noreferrer">Abrir ↗</a></span></div>)}</div> : <EmptyState title="Todavía no hay presupuestos" text="Creá el primero y quedará conectado con su futuro trabajo y reseña." />}
     </section>
   </>;
 
@@ -605,16 +666,29 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <label><span>Validez</span><select value={validity} onChange={(event) => setValidity(Number(event.target.value))}><option value={7}>7 días</option><option value={15}>15 días</option><option value={30}>30 días</option></select></label>
         {!clients.length && <p className="inline-warning">Primero cargá un cliente desde el módulo Clientes.</p>}
         <label><span>Trabajo / descripción general</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej. Instalación de equipo split en living" /></label>
-        <div className="form-section-title"><span>02</span><div><h2>Mano de obra</h2><p>Servicios realizados por MetroClima</p></div></div>
-        <LineEditor kind="labor" lines={labor} onUpdate={updateLine} onAdd={addLine} onRemove={removeLine} />
-        <div className="form-section-title"><span>03</span><div><h2>Materiales</h2><p>Insumos separados del trabajo</p></div></div>
-        <LineEditor kind="materials" lines={materialLines} onUpdate={updateLine} onAdd={addLine} onRemove={removeLine} />
+        <div className="budget-mode-selector" role="group" aria-label="Tipo de presupuesto"><button type="button" className={mode === "simple" ? "active" : ""} onClick={() => setMode("simple")}><strong>Una propuesta</strong><span>Formato tradicional</span></button><button type="button" className={mode === "comparativo" ? "active" : ""} onClick={() => setMode("comparativo")}><strong>LOW + HIGH</strong><span>Dos alcances comparables</span></button></div>
+        <div className={`budget-option-editor ${mode === "comparativo" ? "low" : "simple"}`}><div className="budget-option-heading"><span>{mode === "comparativo" ? "LOW" : "PROPUESTA"}</span><div><strong>{mode === "comparativo" ? "Alternativa esencial" : "Alcance del trabajo"}</strong><small>{mode === "comparativo" ? "La solución necesaria con una inversión cuidada." : "Servicios y materiales incluidos."}</small></div></div>
+          <div className="form-section-title"><span>02</span><div><h2>Mano de obra</h2><p>Servicios realizados por MetroClima</p></div></div>
+          <LineEditor kind="labor" lines={labor} onUpdate={(kind, id, field, value) => updateLine("base", kind, id, field, value)} onAdd={(kind) => addLine("base", kind)} onRemove={(kind, id) => removeLine("base", kind, id)} />
+          <div className="form-section-title"><span>03</span><div><h2>Materiales</h2><p>Insumos separados del trabajo</p></div></div>
+          <LineEditor kind="materials" lines={materialLines} onUpdate={(kind, id, field, value) => updateLine("base", kind, id, field, value)} onAdd={(kind) => addLine("base", kind)} onRemove={(kind, id) => removeLine("base", kind, id)} />
+        </div>
+        {mode === "comparativo" && <div className="budget-option-editor high"><div className="budget-option-heading"><span>HIGH</span><div><strong>Alternativa integral</strong><small>Mayor alcance, terminación o prestaciones.</small></div></div>
+          <div className="form-section-title"><span>02</span><div><h2>Mano de obra HIGH</h2><p>Servicios incluidos en la opción integral</p></div></div>
+          <LineEditor kind="labor" lines={highLabor} onUpdate={(kind, id, field, value) => updateLine("high", kind, id, field, value)} onAdd={(kind) => addLine("high", kind)} onRemove={(kind, id) => removeLine("high", kind, id)} />
+          <div className="form-section-title"><span>03</span><div><h2>Materiales HIGH</h2><p>Insumos incluidos en la opción integral</p></div></div>
+          <LineEditor kind="materials" lines={highMaterialLines} onUpdate={(kind, id, field, value) => updateLine("high", kind, id, field, value)} onAdd={(kind) => addLine("high", kind)} onRemove={(kind, id) => removeLine("high", kind, id)} />
+        </div>}
         <div className="form-section-title"><span>04</span><div><h2>Tratamiento fiscal</h2><p>Configuración visible en el presupuesto</p></div></div>
         <label><span>Condición del emisor</span><select value={taxMode} onChange={(event) => setTaxMode(event.target.value)}><option value="monotributo_iva_no_discriminado">Monotributo · IVA no discriminado</option><option value="sin_impuesto_agregado">Presupuesto informativo · sin impuesto agregado</option><option value="responsable_inscripto_iva_21">Responsable inscripto · IVA 21% (futuro)</option></select></label>
         <div className="fiscal-note"><span>i</span><p>Con el régimen actual se prevé comprobante tipo C y el IVA no se discrimina. La alternativa del 21% queda preparada para un cambio futuro.</p></div>
         <div className="form-section-title"><span>05</span><div><h2>Condiciones comerciales</h2><p>Información visible para el cliente</p></div></div>
         <label><span>Condiciones de pago</span><input value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} /></label>
         <label><span>Garantía</span><input value={warrantyTerms} onChange={(event) => setWarrantyTerms(event.target.value)} /></label>
+        <div className="form-section-title"><span>06</span><div><h2>Observaciones y render</h2><p>Información opcional visible en el documento</p></div></div>
+        <label><span>Observaciones</span><textarea rows={5} maxLength={4000} value={observations} onChange={(event) => setObservations(event.target.value)} placeholder="Ej. El trabajo se coordinará fuera del horario comercial. No incluye tareas de albañilería." /></label>
+        <label className="render-upload"><span>Render o imagen de referencia · opcional</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseRender(event.target.files?.[0] || null)} /><small>JPG, PNG o WebP · máximo 10 MB. Se incorpora al PDF del presupuesto.</small></label>
+        {renderFile && <div className="render-file-chip"><span>✓ {renderFile.name}</span><button type="button" onClick={() => chooseRender(null)}>Quitar</button></div>}
         {savedBudgetNumber && <div className="saved-document-note"><span>✓</span><p><strong>Documento guardado</strong>El QR ya quedó vinculado a este presupuesto.</p></div>}
         <div className="builder-actions"><button type="button" onClick={() => window.print()} disabled={!savedBudgetNumber}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving || Boolean(savedBudgetNumber)}>{saving ? "Guardando…" : savedBudgetNumber ? "✓ Guardado" : "Guardar presupuesto"}</button></div>
       </section>
@@ -623,9 +697,9 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
           <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b><span>{savedBudgetNumber ? `PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "NUEVO"}</span></div></header>
           <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
           <h3>{title || "Descripción del trabajo"}</h3>
-          <div className="document-section"><b>MANO DE OBRA</b>{labor.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
-          <div className="document-section"><b>MATERIALES</b>{materialLines.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
-          <div className="document-totals"><div><span>Mano de obra</span><b>{money.format(totals.laborTotal)}</b></div><div><span>Materiales</span><b>{money.format(totals.materialsTotal)}</b></div>{totals.tax > 0 && <div><span>IVA 21%</span><b>{money.format(totals.tax)}</b></div>}<div className="grand-total"><span>TOTAL</span><b>{money.format(totals.total)}</b></div><small>{taxMode === "monotributo_iva_no_discriminado" ? "IVA no discriminado · Comprobante tipo C" : taxMode === "responsable_inscripto_iva_21" ? "IVA discriminado al 21%" : "Sin impuesto agregado"}</small></div>
+          {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="LOW" subtitle="Alternativa esencial" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="HIGH" subtitle="Alternativa integral" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
+          {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{observations}</p></div>}
+          {renderPreview && <figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure>}
           <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{paymentTerms}</strong></div><div><small>GARANTÍA</small><strong>{warrantyTerms}</strong></div></div>
           {reviewUrl && <a className="document-review-qr" href={reviewUrl} target="_blank" rel="noreferrer">
             <QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" />
@@ -641,6 +715,15 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
 
 function LineEditor({ kind, lines, onUpdate, onAdd, onRemove }: { kind: "labor" | "materials"; lines: Line[]; onUpdate: (kind: "labor" | "materials", id: number, field: keyof Line, value: string) => void; onAdd: (kind: "labor" | "materials") => void; onRemove: (kind: "labor" | "materials", id: number) => void }) {
   return <div className="line-editor"><div className="line-head"><span>Descripción</span><span>Cant.</span><span>Precio unit.</span><span>Total</span><span></span></div>{lines.map((line) => <div className="line-row" key={line.id}><input value={line.description} onChange={(event) => onUpdate(kind, line.id, "description", event.target.value)} placeholder="Descripción" /><input type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => onUpdate(kind, line.id, "quantity", event.target.value)} /><input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => onUpdate(kind, line.id, "unitPrice", event.target.value)} /><b>{money.format(line.quantity * line.unitPrice)}</b><button type="button" onClick={() => onRemove(kind, line.id)} aria-label="Eliminar ítem">×</button></div>)}<button className="add-line" type="button" onClick={() => onAdd(kind)}>＋ Agregar ítem</button></div>;
+}
+
+function BudgetDocumentOption({ label, subtitle, labor, materials, totals, taxMode }: { label?: BudgetOption; subtitle?: string; labor: Line[]; materials: Line[]; totals: { laborTotal: number; materialsTotal: number; tax: number; total: number }; taxMode: string }) {
+  return <section className={`document-option ${label ? `is-${label}` : "is-simple"}`}>
+    {label && <div className="document-option-title"><span>{label.toUpperCase()}</span><strong>{subtitle}</strong></div>}
+    <div className="document-section"><b>MANO DE OBRA</b>{labor.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
+    <div className="document-section"><b>MATERIALES</b>{materials.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
+    <div className="document-totals"><div><span>Mano de obra</span><b>{money.format(totals.laborTotal)}</b></div><div><span>Materiales</span><b>{money.format(totals.materialsTotal)}</b></div>{totals.tax > 0 && <div><span>IVA 21%</span><b>{money.format(totals.tax)}</b></div>}<div className="grand-total"><span>TOTAL {label?.toUpperCase()}</span><b>{money.format(totals.total)}</b></div><small>{taxMode === "monotributo_iva_no_discriminado" ? "IVA no discriminado · Comprobante tipo C" : taxMode === "responsable_inscripto_iva_21" ? "IVA discriminado al 21%" : "Sin impuesto agregado"}</small></div>
+  </section>;
 }
 
 function Works({ works, reviews, budgets, userId, onRefresh }: { works: Work[]; reviews: CustomerReview[]; budgets: Budget[]; userId: string; onRefresh: (message?: string) => Promise<void> }) {
