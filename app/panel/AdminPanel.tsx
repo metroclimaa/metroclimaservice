@@ -833,7 +833,11 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <div className="builder-actions"><button type="button" onClick={() => window.print()} disabled={!savedBudgetNumber}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving || (Boolean(savedBudgetNumber) && !editingBudgetId)}>{saving ? "Guardando…" : editingBudgetId ? "Guardar cambios" : savedBudgetNumber ? "✓ Guardado" : "Guardar presupuesto"}</button></div>
       </section>
       <aside className="budget-preview">
-        <div className="document-paper">
+        <div className="budget-live-summary" aria-live="polite">
+          <div className="budget-live-summary-head"><span>RESUMEN DEL PRESUPUESTO</span><strong>Totales en tiempo real</strong><small>El documento completo se genera al imprimir o descargar el PDF.</small></div>
+          {mode === "comparativo" ? <div className="budget-live-options"><BudgetLiveTotals title="Presupuesto 1" totals={totals} /><BudgetLiveTotals title="Presupuesto 2" totals={highTotals} /></div> : <BudgetLiveTotals totals={totals} />}
+        </div>
+        <div className="document-paper budget-print-document">
           <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b><span>{savedBudgetNumber ? `PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "NUEVO"}</span></div></header>
           <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
           <h3>{title || "Descripción del trabajo"}</h3>
@@ -847,10 +851,19 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
           </a>}
           <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong></div></footer>
         </div>
-        <p>Vista previa · Usá “Imprimir / PDF” para descargarla.</p>
       </aside>
     </div>
   </>;
+}
+
+function BudgetLiveTotals({ title, totals }: { title?: string; totals: { laborTotal: number; materialsTotal: number; tax: number; total: number } }) {
+  return <section className="budget-live-totals">
+    {title && <h3>{title}</h3>}
+    <div><span>Mano de obra</span><strong>{money.format(totals.laborTotal)}</strong></div>
+    <div><span>Materiales</span><strong>{money.format(totals.materialsTotal)}</strong></div>
+    {totals.tax > 0 && <div><span>IVA 21%</span><strong>{money.format(totals.tax)}</strong></div>}
+    <div className="budget-live-grand-total"><span>Total</span><strong>{money.format(totals.total)}</strong></div>
+  </section>;
 }
 
 function LineEditor({ kind, lines, onUpdate, onAdd, onRemove }: { kind: "labor" | "materials"; lines: Line[]; onUpdate: (kind: "labor" | "materials", id: number, field: keyof Line, value: string) => void; onAdd: (kind: "labor" | "materials") => void; onRemove: (kind: "labor" | "materials", id: number) => void }) {
