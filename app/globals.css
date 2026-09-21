@@ -907,8 +907,14 @@ img { display: block; max-width: 100%; }
 .experience-privacy { margin: 24px auto 0; max-width: 560px; color: rgba(255,255,255,.5); font-size: 9px; line-height: 1.6; text-align: center; }
 
 /* Panel unificado: presupuesto → trabajo → reseña */
-.budgets-table .table-row { min-width: 1080px; grid-template-columns: 1fr 1fr 1.35fr .7fr 1fr .85fr .45fr .8fr; }
+.budgets-table { overflow-x: hidden; }
+.budgets-table .table-row { min-width: 0; min-height: 68px; grid-template-columns: .8fr 1.75fr 1.15fr .85fr 1.5fr; gap: 10px; }
+.budget-main-copy { display: grid; gap: 3px; white-space: normal !important; }
+.budget-main-copy > small:not(.budget-comparison-chip) { overflow: hidden; color: #718194; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.budget-main-copy > em { width: max-content; color: #718194; font-size: 6px; font-style: normal; text-transform: uppercase; }
+.budget-total b { white-space: normal; }
 .budget-row-actions { display: flex; align-items: center; gap: 5px; overflow: visible !important; }
+.budget-row-actions .table-action { padding-inline: 4px; white-space: nowrap; }
 .budget-row-actions button { min-height: 30px; padding: 0 8px; border: 1px solid #cbd9e6; background: #fff; color: #47719d; font-size: 7px; font-weight: 800; cursor: pointer; }
 .budget-row-actions button.danger { border-color: #ead1d1; color: #a25353; }
 .budget-row-actions button:disabled { opacity: .45; cursor: not-allowed; }
