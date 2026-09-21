@@ -528,14 +528,14 @@ img { display: block; max-width: 100%; }
 .builder-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .budget-preview { position: sticky; top: 22px; }
 .document-paper { min-height: 730px; padding: 30px; background: #fff; box-shadow: 0 18px 50px rgba(20,45,74,.12); }
-.document-paper > header { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 24px; border-bottom: 2px solid #183a60; }
-.document-brand { display: flex; align-items: center; gap: 9px; }
+.document-paper > header { display: grid; grid-template-columns: minmax(0,1fr) max-content; gap: 24px; align-items: start; padding-bottom: 24px; border-bottom: 2px solid #183a60; }
+.document-brand { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .document-brand img { width: 38px; height: 38px; border-radius: 50%; }
-.document-brand div { display: grid; gap: 3px; }
-.document-brand strong { font-size: 11px; letter-spacing: .06em; }
+.document-brand div { min-width: 0; display: grid; gap: 3px; }
+.document-brand strong { font-size: 11px; letter-spacing: .06em; white-space: nowrap; }
 .document-brand small { color: #7c8997; font-size: 6px; text-transform: uppercase; letter-spacing: .1em; }
-.document-paper > header > div:last-child { display: grid; text-align: right; gap: 4px; }
-.document-paper > header > div:last-child b { color: #4d7fc3; font: 400 16px Georgia, serif; }
+.document-paper > header > div:last-child { min-width: 112px; display: grid; text-align: right; gap: 4px; }
+.document-paper > header > div:last-child b { color: #4d7fc3; font: 400 15px Georgia, serif; white-space: nowrap; }
 .document-paper > header > div:last-child span { color: #7d8996; font-size: 7px; }
 .document-meta { margin: 22px 0; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; background: #f5f7f9; }
 .document-meta > div { display: grid; gap: 4px; }
@@ -547,15 +547,15 @@ img { display: block; max-width: 100%; }
 .document-section { margin-top: 18px; }
 .document-section > b { display: block; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(18,42,70,.12); color: #4d7fc3; font-size: 6px; letter-spacing: .1em; }
 .document-section > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; color: #384c62; font-size: 8px; }
-.document-section > div > span { display: grid; gap: 3px; }
+.document-section > div > span { min-width: 0; display: grid; gap: 3px; overflow-wrap: anywhere; }
+.document-section > div > strong { flex: 0 0 auto; }
 .document-section small { color: #929da8; font-size: 6px; }
 .document-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 .document-option { min-width: 0; }
 .document-option-title { margin: 0 0 10px; padding: 9px 10px; display: flex; align-items: center; gap: 8px; background: #edf3fa; }
 .document-option.is-high .document-option-title { background: #e5f4f2; }
-.document-option-title span { padding: 4px 6px; background: #214a76; color: #fff; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
-.document-option.is-high .document-option-title span { background: #167b78; }
-.document-option-title strong { color: #304b68; font-size: 7px; }
+.document-option-title strong { color: #214a76; font-size: 8px; letter-spacing: .06em; }
+.document-option.is-high .document-option-title strong { color: #167b78; }
 .document-options .document-section { margin-top: 10px; }
 .document-options .document-section > div { gap: 8px; padding: 6px 0; font-size: 7px; }
 .document-options .document-totals { width: 100%; margin: 14px 0 18px; }
@@ -659,12 +659,12 @@ img { display: block; max-width: 100%; }
 .passkey-list button { border: 0; background: none; color: #9a6565; font-size: 7px; font-weight: 800; cursor: pointer; }
 
 @media print {
-  body * { visibility: hidden !important; }
-  .budget-preview, .budget-preview * { visibility: visible !important; }
-  .budget-preview { position: absolute !important; inset: 0 !important; width: 100% !important; margin: 0 !important; }
-  .document-paper { min-height: auto; padding: 18mm; box-shadow: none; }
+  html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  .admin-sidebar, .admin-topbar, .admin-page-title, .budget-form, .budget-preview > p { display: none !important; }
+  .admin-layout, .admin-main, .admin-content, .budget-builder-grid { width: 100% !important; margin: 0 !important; padding: 0 !important; display: block !important; }
+  .budget-preview { position: static !important; width: 100% !important; margin: 0 !important; }
+  .document-paper { width: 100% !important; min-height: auto; margin: 0 !important; padding: 14mm 15mm; box-sizing: border-box; box-shadow: none; }
   .document-option, .document-observations, .document-render, .document-conditions, .document-review-qr { break-inside: avoid; }
-  .budget-preview > p { display: none; }
   @page { size: A4 portrait; margin: 0; }
 }
 

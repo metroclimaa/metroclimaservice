@@ -513,8 +513,6 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   const [savedBudgetNumber, setSavedBudgetNumber] = useState<number | null>(null);
   const [validity, setValidity] = useState(15);
   const [taxMode, setTaxMode] = useState("monotributo_iva_no_discriminado");
-  const [paymentTerms, setPaymentTerms] = useState<string>(metroClima.paymentMethods);
-  const [warrantyTerms, setWarrantyTerms] = useState<string>(metroClima.warranty);
   const [mode, setMode] = useState<BudgetMode>("simple");
   const [observations, setObservations] = useState("");
   const [renderFile, setRenderFile] = useState<File | null>(null);
@@ -541,8 +539,6 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     setRubro("climatizacion");
     setValidity(15);
     setTaxMode("monotributo_iva_no_discriminado");
-    setPaymentTerms(metroClima.paymentMethods);
-    setWarrantyTerms(metroClima.warranty);
     setMode("simple");
     setObservations("");
     setExistingRenderPath("");
@@ -596,8 +592,6 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     setSavedBudgetNumber(Number(budget.numero));
     setValidity(Number(budget.validez_dias));
     setTaxMode(budget.tratamiento_fiscal);
-    setPaymentTerms(budget.condiciones_pago);
-    setWarrantyTerms(budget.garantia);
     setMode(budgetMode);
     setObservations(budget.observaciones || "");
     setLabor(toLines(baseAlternative, "mano_obra"));
@@ -668,8 +662,8 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       iva_high: mode === "comparativo" ? highTotals.tax : 0,
       total_high: mode === "comparativo" ? highTotals.total : 0,
       validez_dias: validity,
-      condiciones_pago: paymentTerms,
-      garantia: warrantyTerms,
+      condiciones_pago: metroClima.paymentMethods,
+      garantia: metroClima.warranty,
     };
 
     if (editingBudgetId) {
@@ -756,7 +750,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     setReviewToken(data.review_token);
     setSavedBudgetId(data.id);
     setSavedBudgetNumber(Number(data.numero));
-    await onRefresh(`✓ Presupuesto${mode === "comparativo" ? " LOW / HIGH" : ""} guardado. Ya podés imprimirlo con su QR único.`);
+    await onRefresh(`✓ Presupuesto${mode === "comparativo" ? " con dos propuestas" : ""} guardado. Ya podés imprimirlo con su QR único.`);
   }
 
   function buildBudgetItems(budgetId: string) {
@@ -797,7 +791,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <div className="table-row table-head"><span>Número</span><span>Cliente y trabajo</span><span>Propuesta</span><span>Estado</span><span>Acciones</span></div>
         {budgets.map((row) => <div className="table-row" key={row.id}>
           <span className="budget-number">PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span>
-          <span className="budget-main-copy"><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b><small>{row.titulo}</small><em>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</em>{row.modalidad === "comparativo" && <small className="budget-comparison-chip">LOW / HIGH</small>}</span>
+          <span className="budget-main-copy"><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b><small>{row.titulo}</small><em>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</em>{row.modalidad === "comparativo" && <small className="budget-comparison-chip">PRESUPUESTOS 1 Y 2</small>}</span>
           <span className="budget-total"><b>{row.modalidad === "comparativo" ? `${money.format(Number(row.total))} — ${money.format(Number(row.total_high))}` : money.format(Number(row.total))}</b></span>
           <span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span>
           <span className="budget-row-actions"><a className="table-action" href={`${metroClima.siteUrl}/experiencia?presupuesto=${row.id}&token=${row.review_token}&numero=${row.numero}&rubro=${row.rubro}`} target="_blank" rel="noreferrer">Reseña ↗</a>{row.estado === "borrador" ? <><button type="button" onClick={() => editDraft(row)} disabled={saving}>Editar</button><button type="button" className="danger" onClick={() => deleteDraft(row)} disabled={saving}>Eliminar</button></> : <small>Documento cerrado</small>}</span>
@@ -815,26 +809,23 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <label><span>Validez</span><select value={validity} onChange={(event) => setValidity(Number(event.target.value))}><option value={7}>7 días</option><option value={15}>15 días</option><option value={30}>30 días</option></select></label>
         {!clients.length && <p className="inline-warning">Primero cargá un cliente desde el módulo Clientes.</p>}
         <label><span>Trabajo / descripción general</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ej. Instalación de equipo split en living" /></label>
-        <div className="budget-mode-selector" role="group" aria-label="Tipo de presupuesto"><button type="button" className={mode === "simple" ? "active" : ""} onClick={() => setMode("simple")}><strong>Una propuesta</strong><span>Formato tradicional</span></button><button type="button" className={mode === "comparativo" ? "active" : ""} onClick={() => setMode("comparativo")}><strong>LOW + HIGH</strong><span>Dos alcances comparables</span></button></div>
-        <div className={`budget-option-editor ${mode === "comparativo" ? "low" : "simple"}`}><div className="budget-option-heading"><span>{mode === "comparativo" ? "LOW" : "PROPUESTA"}</span><div><strong>{mode === "comparativo" ? "Alternativa esencial" : "Alcance del trabajo"}</strong><small>{mode === "comparativo" ? "La solución necesaria con una inversión cuidada." : "Servicios y materiales incluidos."}</small></div></div>
+        <div className="budget-mode-selector" role="group" aria-label="Tipo de presupuesto"><button type="button" className={mode === "simple" ? "active" : ""} onClick={() => setMode("simple")}><strong>Una propuesta</strong><span>Formato tradicional</span></button><button type="button" className={mode === "comparativo" ? "active" : ""} onClick={() => setMode("comparativo")}><strong>Dos presupuestos</strong><span>Dos alcances comparables</span></button></div>
+        <div className={`budget-option-editor ${mode === "comparativo" ? "low" : "simple"}`}><div className="budget-option-heading"><span>{mode === "comparativo" ? "PRESUPUESTO 1" : "PROPUESTA"}</span><div><strong>{mode === "comparativo" ? "Primera propuesta" : "Alcance del trabajo"}</strong><small>{mode === "comparativo" ? "Servicios y materiales incluidos en la primera opción." : "Servicios y materiales incluidos."}</small></div></div>
           <div className="form-section-title"><span>02</span><div><h2>Mano de obra</h2><p>Servicios realizados por MetroClima</p></div></div>
           <LineEditor kind="labor" lines={labor} onUpdate={(kind, id, field, value) => updateLine("base", kind, id, field, value)} onAdd={(kind) => addLine("base", kind)} onRemove={(kind, id) => removeLine("base", kind, id)} />
           <div className="form-section-title"><span>03</span><div><h2>Materiales</h2><p>Insumos separados del trabajo</p></div></div>
           <LineEditor kind="materials" lines={materialLines} onUpdate={(kind, id, field, value) => updateLine("base", kind, id, field, value)} onAdd={(kind) => addLine("base", kind)} onRemove={(kind, id) => removeLine("base", kind, id)} />
         </div>
-        {mode === "comparativo" && <div className="budget-option-editor high"><div className="budget-option-heading"><span>HIGH</span><div><strong>Alternativa integral</strong><small>Mayor alcance, terminación o prestaciones.</small></div></div>
-          <div className="form-section-title"><span>02</span><div><h2>Mano de obra HIGH</h2><p>Servicios incluidos en la opción integral</p></div></div>
+        {mode === "comparativo" && <div className="budget-option-editor high"><div className="budget-option-heading"><span>PRESUPUESTO 2</span><div><strong>Segunda propuesta</strong><small>Servicios y materiales incluidos en la segunda opción.</small></div></div>
+          <div className="form-section-title"><span>02</span><div><h2>Mano de obra · Presupuesto 2</h2><p>Servicios incluidos en la segunda propuesta</p></div></div>
           <LineEditor kind="labor" lines={highLabor} onUpdate={(kind, id, field, value) => updateLine("high", kind, id, field, value)} onAdd={(kind) => addLine("high", kind)} onRemove={(kind, id) => removeLine("high", kind, id)} />
-          <div className="form-section-title"><span>03</span><div><h2>Materiales HIGH</h2><p>Insumos incluidos en la opción integral</p></div></div>
+          <div className="form-section-title"><span>03</span><div><h2>Materiales · Presupuesto 2</h2><p>Insumos incluidos en la segunda propuesta</p></div></div>
           <LineEditor kind="materials" lines={highMaterialLines} onUpdate={(kind, id, field, value) => updateLine("high", kind, id, field, value)} onAdd={(kind) => addLine("high", kind)} onRemove={(kind, id) => removeLine("high", kind, id)} />
         </div>}
         <div className="form-section-title"><span>04</span><div><h2>Tratamiento fiscal</h2><p>Configuración visible en el presupuesto</p></div></div>
         <label><span>Condición del emisor</span><select value={taxMode} onChange={(event) => setTaxMode(event.target.value)}><option value="monotributo_iva_no_discriminado">Monotributo · IVA no discriminado</option><option value="sin_impuesto_agregado">Presupuesto informativo · sin impuesto agregado</option><option value="responsable_inscripto_iva_21">Responsable inscripto · IVA 21% (futuro)</option></select></label>
         <div className="fiscal-note"><span>i</span><p>Con el régimen actual se prevé comprobante tipo C y el IVA no se discrimina. La alternativa del 21% queda preparada para un cambio futuro.</p></div>
-        <div className="form-section-title"><span>05</span><div><h2>Condiciones comerciales</h2><p>Información visible para el cliente</p></div></div>
-        <label><span>Condiciones de pago</span><input value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} /></label>
-        <label><span>Garantía</span><input value={warrantyTerms} onChange={(event) => setWarrantyTerms(event.target.value)} /></label>
-        <div className="form-section-title"><span>06</span><div><h2>Observaciones y render</h2><p>Información opcional visible en el documento</p></div></div>
+        <div className="form-section-title"><span>05</span><div><h2>Observaciones y render</h2><p>Información opcional visible en el documento</p></div></div>
         <label><span>Observaciones</span><textarea rows={5} maxLength={4000} value={observations} onChange={(event) => setObservations(event.target.value)} placeholder="Ej. El trabajo se coordinará fuera del horario comercial. No incluye tareas de albañilería." /></label>
         <label className="render-upload"><span>Render o imagen de referencia · opcional</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseRender(event.target.files?.[0] || null)} /><small>JPG, PNG o WebP · máximo 10 MB. Se incorpora al PDF del presupuesto.</small></label>
         {(renderFile || (existingRenderPath && !removeExistingRender)) && <div className="render-file-chip"><span>✓ {renderFile?.name || "Render guardado"}</span><button type="button" onClick={removeRender}>Quitar</button></div>}
@@ -846,10 +837,10 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
           <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b><span>{savedBudgetNumber ? `PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "NUEVO"}</span></div></header>
           <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
           <h3>{title || "Descripción del trabajo"}</h3>
-          {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="LOW" subtitle="Alternativa esencial" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="HIGH" subtitle="Alternativa integral" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
+          {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
           {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{observations}</p></div>}
           {renderPreview && <figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure>}
-          <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{paymentTerms}</strong></div><div><small>GARANTÍA</small><strong>{warrantyTerms}</strong></div></div>
+          <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{metroClima.paymentMethods}</strong></div><div><small>GARANTÍA</small><strong>{metroClima.warranty}</strong></div></div>
           {reviewUrl && <a className="document-review-qr" href={reviewUrl} target="_blank" rel="noreferrer">
             <QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" />
             <span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá o hacé clic acá para contarnos tu experiencia.</strong><em>Tu comentario se vincula únicamente con este presupuesto.</em></span>
@@ -866,12 +857,13 @@ function LineEditor({ kind, lines, onUpdate, onAdd, onRemove }: { kind: "labor" 
   return <div className="line-editor"><div className="line-head"><span>Descripción</span><span>Cant.</span><span>Precio unit.</span><span>Total</span><span></span></div>{lines.map((line) => <div className="line-row" key={line.id}><input value={line.description} onChange={(event) => onUpdate(kind, line.id, "description", event.target.value)} placeholder="Descripción" /><input type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => onUpdate(kind, line.id, "quantity", event.target.value)} /><input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => onUpdate(kind, line.id, "unitPrice", event.target.value)} /><b>{money.format(line.quantity * line.unitPrice)}</b><button type="button" onClick={() => onRemove(kind, line.id)} aria-label="Eliminar ítem">×</button></div>)}<button className="add-line" type="button" onClick={() => onAdd(kind)}>＋ Agregar ítem</button></div>;
 }
 
-function BudgetDocumentOption({ label, subtitle, labor, materials, totals, taxMode }: { label?: BudgetOption; subtitle?: string; labor: Line[]; materials: Line[]; totals: { laborTotal: number; materialsTotal: number; tax: number; total: number }; taxMode: string }) {
+function BudgetDocumentOption({ label, labor, materials, totals, taxMode }: { label?: BudgetOption; labor: Line[]; materials: Line[]; totals: { laborTotal: number; materialsTotal: number; tax: number; total: number }; taxMode: string }) {
+  const proposalName = label === "low" ? "PRESUPUESTO 1" : label === "high" ? "PRESUPUESTO 2" : "";
   return <section className={`document-option ${label ? `is-${label}` : "is-simple"}`}>
-    {label && <div className="document-option-title"><span>{label.toUpperCase()}</span><strong>{subtitle}</strong></div>}
+    {label && <div className="document-option-title"><strong>{proposalName}</strong></div>}
     <div className="document-section"><b>MANO DE OBRA</b>{labor.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
     <div className="document-section"><b>MATERIALES</b>{materials.map((line) => <div key={line.id}><span>{line.description || "Sin descripción"}<small>{line.quantity} × {money.format(line.unitPrice)}</small></span><strong>{money.format(line.quantity * line.unitPrice)}</strong></div>)}</div>
-    <div className="document-totals"><div><span>Mano de obra</span><b>{money.format(totals.laborTotal)}</b></div><div><span>Materiales</span><b>{money.format(totals.materialsTotal)}</b></div>{totals.tax > 0 && <div><span>IVA 21%</span><b>{money.format(totals.tax)}</b></div>}<div className="grand-total"><span>TOTAL {label?.toUpperCase()}</span><b>{money.format(totals.total)}</b></div><small>{taxMode === "monotributo_iva_no_discriminado" ? "IVA no discriminado · Comprobante tipo C" : taxMode === "responsable_inscripto_iva_21" ? "IVA discriminado al 21%" : "Sin impuesto agregado"}</small></div>
+    <div className="document-totals"><div><span>Mano de obra</span><b>{money.format(totals.laborTotal)}</b></div><div><span>Materiales</span><b>{money.format(totals.materialsTotal)}</b></div>{totals.tax > 0 && <div><span>IVA 21%</span><b>{money.format(totals.tax)}</b></div>}<div className="grand-total"><span>{label ? `TOTAL ${proposalName}` : "TOTAL"}</span><b>{money.format(totals.total)}</b></div><small>{taxMode === "monotributo_iva_no_discriminado" ? "IVA no discriminado · Comprobante tipo C" : taxMode === "responsable_inscripto_iva_21" ? "IVA discriminado al 21%" : "Sin impuesto agregado"}</small></div>
   </section>;
 }
 
