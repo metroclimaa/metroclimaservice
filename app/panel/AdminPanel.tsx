@@ -53,6 +53,7 @@ type Budget = {
   total: number;
   total_high: number;
   modalidad: BudgetMode;
+  render_path: string | null;
   estado: string;
   creado_en: string;
   validez_dias: number;
@@ -178,7 +179,7 @@ export function AdminPanel() {
       supabase.from("consultas").select("*,respuestas(id,respuesta,publica,creado_en,autor_id)").order("creado_en", { ascending: false }),
       supabase.from("clientes").select("id,tipo,nombre_razon_social,telefono,email,localidad,direccion").order("nombre_razon_social"),
       supabase.from("materiales").select("id,codigo,nombre,unidad,costo_referencia,controla_stock,stock_actual,stock_minimo,activo").eq("activo", true).order("nombre"),
-      supabase.from("presupuestos").select("id,numero,titulo,total,total_high,modalidad,estado,creado_en,validez_dias,rubro,review_token,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
+      supabase.from("presupuestos").select("id,numero,titulo,total,total_high,modalidad,render_path,estado,creado_en,validez_dias,rubro,review_token,clientes(nombre_razon_social,localidad)").order("creado_en", { ascending: false }),
       supabase.from("trabajos").select("id,presupuesto_id,titulo_publico,resumen,localidad_publica,fecha_realizacion,publicado,destacado,trabajo_imagenes(id,trabajo_id,storage_path,orden,alt),presupuestos(numero,titulo,rubro,review_token,clientes(nombre_razon_social))").order("creado_en", { ascending: false }),
       supabase.from("resenas_clientes").select("id,presupuesto_id,nombre_publico,puntuacion,comentario,aprobada,creado_en,presupuestos(numero,titulo)").order("creado_en", { ascending: false }),
       supabase.from("comprobantes").select("id,tipo,punto_venta,numero,total,estado,emitido_en,creado_en,clientes(nombre_razon_social)").order("creado_en", { ascending: false }),
@@ -503,6 +504,7 @@ function Questions({ consultations, userId, onRefresh }: { consultations: Consul
 
 function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; clients: Client[]; userId: string; onRefresh: (message?: string) => Promise<void> }) {
   const [builder, setBuilder] = useState(false);
+  const [editingBudgetId, setEditingBudgetId] = useState("");
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
   const [rubro, setRubro] = useState<"climatizacion" | "electricidad">("climatizacion");
@@ -517,6 +519,8 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   const [observations, setObservations] = useState("");
   const [renderFile, setRenderFile] = useState<File | null>(null);
   const [renderPreview, setRenderPreview] = useState("");
+  const [existingRenderPath, setExistingRenderPath] = useState("");
+  const [removeExistingRender, setRemoveExistingRender] = useState(false);
   const [labor, setLabor] = useState<Line[]>([{ id: 1, description: "Instalación estándar de equipo split", quantity: 1, unitPrice: 0 }]);
   const [materialLines, setMaterialLines] = useState<Line[]>([{ id: 2, description: "Kit de instalación", quantity: 1, unitPrice: 0 }]);
   const [highLabor, setHighLabor] = useState<Line[]>([{ id: 3, description: "Alternativa integral de instalación", quantity: 1, unitPrice: 0 }]);
@@ -531,16 +535,85 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     setReviewToken(crypto.randomUUID());
     setSavedBudgetId("");
     setSavedBudgetNumber(null);
+    setEditingBudgetId("");
+    setClientId("");
+    setTitle("");
+    setRubro("climatizacion");
+    setValidity(15);
+    setTaxMode("monotributo_iva_no_discriminado");
+    setPaymentTerms(metroClima.paymentMethods);
+    setWarrantyTerms(metroClima.warranty);
     setMode("simple");
     setObservations("");
+    setExistingRenderPath("");
+    setRemoveExistingRender(false);
     chooseRender(null);
+    setLabor([{ id: 1, description: "Instalación estándar de equipo split", quantity: 1, unitPrice: 0 }]);
+    setMaterialLines([{ id: 2, description: "Kit de instalación", quantity: 1, unitPrice: 0 }]);
+    setHighLabor([{ id: 3, description: "Alternativa integral de instalación", quantity: 1, unitPrice: 0 }]);
+    setHighMaterialLines([{ id: 4, description: "Materiales de alternativa integral", quantity: 1, unitPrice: 0 }]);
     setBuilder(true);
   }
 
   function chooseRender(file: File | null) {
-    if (renderPreview) URL.revokeObjectURL(renderPreview);
+    if (renderPreview.startsWith("blob:")) URL.revokeObjectURL(renderPreview);
     setRenderFile(file);
     setRenderPreview(file ? URL.createObjectURL(file) : "");
+    if (file) setRemoveExistingRender(false);
+  }
+
+  function removeRender() {
+    chooseRender(null);
+    setRemoveExistingRender(Boolean(existingRenderPath));
+  }
+
+  async function editDraft(row: Budget) {
+    if (row.estado !== "borrador") return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    setSaving(true);
+    const [budgetResult, itemsResult] = await Promise.all([
+      supabase.from("presupuestos").select("id,numero,cliente_id,titulo,rubro,review_token,validez_dias,tratamiento_fiscal,condiciones_pago,garantia,modalidad,observaciones,render_path").eq("id", row.id).eq("estado", "borrador").maybeSingle(),
+      supabase.from("items_presupuesto").select("id,tipo,alternativa,descripcion,cantidad,precio_unitario,orden").eq("presupuesto_id", row.id).order("orden"),
+    ]);
+    if (budgetResult.error || !budgetResult.data || itemsResult.error) {
+      setSaving(false);
+      await onRefresh("No pudimos abrir el borrador para editarlo.");
+      return;
+    }
+    const budget = budgetResult.data;
+    const rows = itemsResult.data ?? [];
+    const toLines = (alternative: "simple" | "low" | "high", type: "mano_obra" | "material") => rows
+      .filter((item) => item.alternativa === alternative && item.tipo === type)
+      .map((item, index) => ({ id: Date.now() + index + (alternative === "high" ? 1000 : 0) + (type === "material" ? 100 : 0), description: item.descripcion, quantity: Number(item.cantidad), unitPrice: Number(item.precio_unitario) }));
+    const budgetMode = budget.modalidad as BudgetMode;
+    const baseAlternative = budgetMode === "comparativo" ? "low" : "simple";
+    setClientId(budget.cliente_id || "");
+    setTitle(budget.titulo);
+    setRubro(budget.rubro as "climatizacion" | "electricidad");
+    setReviewToken(budget.review_token);
+    setSavedBudgetId(budget.id);
+    setSavedBudgetNumber(Number(budget.numero));
+    setValidity(Number(budget.validez_dias));
+    setTaxMode(budget.tratamiento_fiscal);
+    setPaymentTerms(budget.condiciones_pago);
+    setWarrantyTerms(budget.garantia);
+    setMode(budgetMode);
+    setObservations(budget.observaciones || "");
+    setLabor(toLines(baseAlternative, "mano_obra"));
+    setMaterialLines(toLines(baseAlternative, "material"));
+    setHighLabor(toLines("high", "mano_obra"));
+    setHighMaterialLines(toLines("high", "material"));
+    chooseRender(null);
+    setExistingRenderPath(budget.render_path || "");
+    setRemoveExistingRender(false);
+    if (budget.render_path) {
+      const signed = await supabase.storage.from("presupuesto-renders").createSignedUrl(budget.render_path, 3600);
+      setRenderPreview(signed.data?.signedUrl || "");
+    }
+    setEditingBudgetId(budget.id);
+    setBuilder(true);
+    setSaving(false);
   }
 
   const totals = useMemo(() => calculateBudgetTotals(labor, materialLines, taxMode), [labor, materialLines, taxMode]);
@@ -578,7 +651,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     setSaving(true);
-    const { data, error } = await supabase.from("presupuestos").insert({
+    const budgetValues = {
       cliente_id: clientId,
       titulo: title.trim(),
       rubro,
@@ -597,6 +670,53 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       validez_dias: validity,
       condiciones_pago: paymentTerms,
       garantia: warrantyTerms,
+    };
+
+    if (editingBudgetId) {
+      let nextRenderPath = existingRenderPath || null;
+      let uploadedRenderPath = "";
+      if (renderFile) {
+        const extension = renderFile.type === "image/png" ? "png" : renderFile.type === "image/webp" ? "webp" : "jpg";
+        uploadedRenderPath = `${editingBudgetId}/${crypto.randomUUID()}.${extension}`;
+        const upload = await supabase.storage.from("presupuesto-renders").upload(uploadedRenderPath, renderFile, { cacheControl: "3600", upsert: false });
+        if (upload.error) {
+          setSaving(false);
+          await onRefresh("No pudimos subir el nuevo render.");
+          return;
+        }
+        nextRenderPath = uploadedRenderPath;
+      } else if (removeExistingRender) {
+        nextRenderPath = null;
+      }
+      const updated = await supabase.from("presupuestos").update({ ...budgetValues, render_path: nextRenderPath }).eq("id", editingBudgetId).eq("estado", "borrador").select("id,numero,review_token").maybeSingle();
+      if (updated.error || !updated.data) {
+        if (uploadedRenderPath) await supabase.storage.from("presupuesto-renders").remove([uploadedRenderPath]);
+        setSaving(false);
+        await onRefresh("No pudimos actualizar el borrador. Verificá que continúe en estado Borrador.");
+        return;
+      }
+      const deletedItems = await supabase.from("items_presupuesto").delete().eq("presupuesto_id", editingBudgetId);
+      const items = buildBudgetItems(editingBudgetId);
+      const insertedItems = !deletedItems.error && items.length ? await supabase.from("items_presupuesto").insert(items) : { error: deletedItems.error };
+      if (insertedItems.error) {
+        setSaving(false);
+        await onRefresh("El encabezado se actualizó, pero no pudimos guardar sus ítems. Volvé a abrir el borrador e intentá nuevamente.");
+        return;
+      }
+      if ((uploadedRenderPath || removeExistingRender) && existingRenderPath) {
+        await supabase.storage.from("presupuesto-renders").remove([existingRenderPath]);
+      }
+      setExistingRenderPath(nextRenderPath || "");
+      setRemoveExistingRender(false);
+      setRenderFile(null);
+      setEditingBudgetId("");
+      setSaving(false);
+      await onRefresh("✓ Borrador actualizado. Ya podés imprimirlo o cambiar su estado.");
+      return;
+    }
+
+    const { data, error } = await supabase.from("presupuestos").insert({
+      ...budgetValues,
       creado_por: userId,
       estado: "borrador",
     }).select("id,numero,review_token").single();
@@ -605,12 +725,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       await onRefresh("No pudimos guardar el presupuesto.");
       return;
     }
-    const items = [
-      ...labor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: mode === "comparativo" ? "low" : "simple", tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })),
-      ...materialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: mode === "comparativo" ? "low" : "simple", tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: labor.length + order })),
-      ...(mode === "comparativo" ? highLabor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: "high", tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })) : []),
-      ...(mode === "comparativo" ? highMaterialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: data.id, alternativa: "high", tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: highLabor.length + order })) : []),
-    ];
+    const items = buildBudgetItems(data.id);
     const itemResult = items.length ? await supabase.from("items_presupuesto").insert(items) : { error: null };
     if (itemResult.error) {
       await supabase.from("presupuestos").delete().eq("id", data.id);
@@ -644,6 +759,31 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     await onRefresh(`✓ Presupuesto${mode === "comparativo" ? " LOW / HIGH" : ""} guardado. Ya podés imprimirlo con su QR único.`);
   }
 
+  function buildBudgetItems(budgetId: string) {
+    return [
+      ...labor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: budgetId, alternativa: mode === "comparativo" ? "low" : "simple", tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })),
+      ...materialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: budgetId, alternativa: mode === "comparativo" ? "low" : "simple", tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: labor.length + order })),
+      ...(mode === "comparativo" ? highLabor.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: budgetId, alternativa: "high", tipo: "mano_obra", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: Number(order) })) : []),
+      ...(mode === "comparativo" ? highMaterialLines.filter((item) => item.description.trim()).map((item, order) => ({ presupuesto_id: budgetId, alternativa: "high", tipo: "material", descripcion: item.description.trim(), cantidad: item.quantity, precio_unitario: item.unitPrice, orden: highLabor.length + order })) : []),
+    ];
+  }
+
+  async function deleteDraft(row: Budget) {
+    if (row.estado !== "borrador" || !window.confirm(`¿Eliminar definitivamente el presupuesto PRE-${String(row.numero).padStart(4, "0")}?`)) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    setSaving(true);
+    const result = await supabase.from("presupuestos").delete().eq("id", row.id).eq("estado", "borrador").select("id").maybeSingle();
+    if (result.error || !result.data) {
+      setSaving(false);
+      await onRefresh("No pudimos eliminar el presupuesto. Puede estar vinculado a un trabajo o haber cambiado de estado.");
+      return;
+    }
+    if (row.render_path) await supabase.storage.from("presupuesto-renders").remove([row.render_path]);
+    setSaving(false);
+    await onRefresh("✓ Presupuesto borrador eliminado.");
+  }
+
   async function updateBudgetState(id: string, estado: string) {
     const { error } = await getSupabaseBrowserClient()!.from("presupuestos").update({ estado }).eq("id", id);
     if (!error) await onRefresh("✓ Estado del presupuesto actualizado");
@@ -653,12 +793,12 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
     <PageTitle eyebrow="Gestión comercial" title="Presupuestos" text="Un único documento conecta cliente, trabajo, imágenes y reseña." action={<button className="admin-primary" onClick={startBudget}>＋ Crear presupuesto</button>} />
     <section className="admin-card recent-budgets full-list">
       <div className="admin-card-head"><div><h2>Todos los presupuestos</h2><p>{budgets.length} documentos guardados</p></div><span className="connected-chip">● Datos en tiempo real</span></div>
-      {budgets.length ? <div className="admin-table budgets-table"><div className="table-row table-head"><span>Número</span><span>Cliente</span><span>Trabajo</span><span>Rubro</span><span>Total</span><span>Estado</span><span>Reseña</span></div>{budgets.map((row) => <div className="table-row" key={row.id}><span>PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span><span><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b></span><span>{row.titulo}{row.modalidad === "comparativo" && <small className="budget-comparison-chip">LOW / HIGH</small>}</span><span>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</span><span><b>{row.modalidad === "comparativo" ? `${money.format(Number(row.total))} — ${money.format(Number(row.total_high))}` : money.format(Number(row.total))}</b></span><span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span><span><a className="table-action" href={`${metroClima.siteUrl}/experiencia?presupuesto=${row.id}&token=${row.review_token}&numero=${row.numero}&rubro=${row.rubro}`} target="_blank" rel="noreferrer">Abrir ↗</a></span></div>)}</div> : <EmptyState title="Todavía no hay presupuestos" text="Creá el primero y quedará conectado con su futuro trabajo y reseña." />}
+      {budgets.length ? <div className="admin-table budgets-table"><div className="table-row table-head"><span>Número</span><span>Cliente</span><span>Trabajo</span><span>Rubro</span><span>Total</span><span>Estado</span><span>Reseña</span><span>Acciones</span></div>{budgets.map((row) => <div className="table-row" key={row.id}><span>PRE-{new Date(row.creado_en).getFullYear()}-{String(row.numero).padStart(4, "0")}</span><span><b>{row.clientes?.nombre_razon_social || "Sin cliente"}</b></span><span>{row.titulo}{row.modalidad === "comparativo" && <small className="budget-comparison-chip">LOW / HIGH</small>}</span><span>{row.rubro === "electricidad" ? "Electricidad" : "Climatización"}</span><span><b>{row.modalidad === "comparativo" ? `${money.format(Number(row.total))} — ${money.format(Number(row.total_high))}` : money.format(Number(row.total))}</b></span><span><select className="status-select" value={row.estado} onChange={(event) => updateBudgetState(row.id, event.target.value)}><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="vencido">Vencido</option></select></span><span><a className="table-action" href={`${metroClima.siteUrl}/experiencia?presupuesto=${row.id}&token=${row.review_token}&numero=${row.numero}&rubro=${row.rubro}`} target="_blank" rel="noreferrer">Abrir ↗</a></span><span className="budget-row-actions">{row.estado === "borrador" ? <><button type="button" onClick={() => editDraft(row)} disabled={saving}>Editar</button><button type="button" className="danger" onClick={() => deleteDraft(row)} disabled={saving}>Eliminar</button></> : <small>Documento cerrado</small>}</span></div>)}</div> : <EmptyState title="Todavía no hay presupuestos" text="Creá el primero y quedará conectado con su futuro trabajo y reseña." />}
     </section>
   </>;
 
   return <>
-    <PageTitle eyebrow="Nuevo documento" title={savedBudgetNumber ? `Presupuesto PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "Crear presupuesto"} text={savedBudgetNumber ? "Guardado y listo para imprimir con su enlace de experiencia." : "Completá los datos y revisá el documento membretado antes de guardarlo."} action={<button className="admin-secondary" onClick={() => { setBuilder(false); setTitle(""); }}>← Volver al listado</button>} />
+    <PageTitle eyebrow={editingBudgetId ? "Edición de borrador" : "Nuevo documento"} title={savedBudgetNumber ? `Presupuesto PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "Crear presupuesto"} text={editingBudgetId ? "Modificá los datos necesarios y guardá los cambios." : savedBudgetNumber ? "Guardado y listo para imprimir con su enlace de experiencia." : "Completá los datos y revisá el documento membretado antes de guardarlo."} action={<button className="admin-secondary" onClick={() => { chooseRender(null); setEditingBudgetId(""); setBuilder(false); setTitle(""); }}>← Volver al listado</button>} />
     <div className="budget-builder-grid">
       <section className="admin-card budget-form">
         <div className="form-section-title"><span>01</span><div><h2>Cliente y trabajo</h2><p>Información principal del documento</p></div></div>
@@ -688,9 +828,9 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <div className="form-section-title"><span>06</span><div><h2>Observaciones y render</h2><p>Información opcional visible en el documento</p></div></div>
         <label><span>Observaciones</span><textarea rows={5} maxLength={4000} value={observations} onChange={(event) => setObservations(event.target.value)} placeholder="Ej. El trabajo se coordinará fuera del horario comercial. No incluye tareas de albañilería." /></label>
         <label className="render-upload"><span>Render o imagen de referencia · opcional</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseRender(event.target.files?.[0] || null)} /><small>JPG, PNG o WebP · máximo 10 MB. Se incorpora al PDF del presupuesto.</small></label>
-        {renderFile && <div className="render-file-chip"><span>✓ {renderFile.name}</span><button type="button" onClick={() => chooseRender(null)}>Quitar</button></div>}
+        {(renderFile || (existingRenderPath && !removeExistingRender)) && <div className="render-file-chip"><span>✓ {renderFile?.name || "Render guardado"}</span><button type="button" onClick={removeRender}>Quitar</button></div>}
         {savedBudgetNumber && <div className="saved-document-note"><span>✓</span><p><strong>Documento guardado</strong>El QR ya quedó vinculado a este presupuesto.</p></div>}
-        <div className="builder-actions"><button type="button" onClick={() => window.print()} disabled={!savedBudgetNumber}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving || Boolean(savedBudgetNumber)}>{saving ? "Guardando…" : savedBudgetNumber ? "✓ Guardado" : "Guardar presupuesto"}</button></div>
+        <div className="builder-actions"><button type="button" onClick={() => window.print()} disabled={!savedBudgetNumber}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving || (Boolean(savedBudgetNumber) && !editingBudgetId)}>{saving ? "Guardando…" : editingBudgetId ? "Guardar cambios" : savedBudgetNumber ? "✓ Guardado" : "Guardar presupuesto"}</button></div>
       </section>
       <aside className="budget-preview">
         <div className="document-paper">
