@@ -674,11 +674,40 @@ img { display: block; max-width: 100%; }
 
 @media print {
   html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-  .admin-sidebar, .admin-topbar, .admin-page-title, .budget-form, .budget-live-summary { display: none !important; }
+  .admin-sidebar, .admin-topbar, .admin-page-title, .budget-form, .budget-live-summary, .admin-toast { display: none !important; }
   .admin-layout, .admin-main, .admin-content, .budget-builder-grid { width: 100% !important; margin: 0 !important; padding: 0 !important; display: block !important; }
   .budget-preview { position: static !important; width: 100% !important; margin: 0 !important; }
   .budget-print-document { display: block !important; }
   .document-paper { width: 100% !important; min-height: auto; margin: 0 !important; padding: 14mm 15mm !important; box-sizing: border-box; box-shadow: none; }
+  .document-paper > header { gap: 30px !important; padding-bottom: 20px !important; }
+  .document-brand img { width: 46px !important; height: 46px !important; }
+  .document-brand strong { font-size: 14px !important; }
+  .document-brand small { display: block !important; font-size: 8px !important; }
+  .document-paper > header > div:last-child { min-width: 145px !important; }
+  .document-paper > header > div:last-child b { font-size: 21px !important; }
+  .document-paper > header > div:last-child span { font-size: 9px !important; }
+  .document-meta { margin: 19px 0 !important; padding: 14px !important; }
+  .document-meta small { font-size: 8px !important; }
+  .document-meta strong { font-size: 11px !important; }
+  .document-meta span { font-size: 9px !important; }
+  .document-paper > h3 { margin-bottom: 18px !important; font-size: 21px !important; }
+  .document-option-title strong { font-size: 10px !important; }
+  .document-section > b { font-size: 8.5px !important; }
+  .document-section > div { font-size: 10px !important; line-height: 1.35 !important; }
+  .document-section small { font-size: 8px !important; }
+  .document-options .document-section > div { font-size: 9.5px !important; }
+  .document-totals > div { font-size: 9.5px !important; }
+  .document-totals .grand-total { font-size: 11px !important; }
+  .document-totals .grand-total b { font-size: 16px !important; }
+  .document-totals > small { font-size: 8px !important; }
+  .document-observations small, .document-render figcaption { font-size: 8.5px !important; }
+  .document-observations p { font-size: 9.5px !important; line-height: 1.55 !important; }
+  .document-conditions small, .document-paper > footer small { font-size: 8px !important; }
+  .document-conditions strong { font-size: 9.5px !important; }
+  .document-review-qr small { font-size: 8px !important; }
+  .document-review-qr strong { font-size: 10px !important; }
+  .document-review-qr em { font-size: 8px !important; }
+  .document-paper > footer strong { font-size: 8.5px !important; }
   .document-option, .document-observations, .document-render, .document-conditions, .document-review-qr { break-inside: avoid; }
   @page { size: A4 portrait; margin: 0; }
 }
