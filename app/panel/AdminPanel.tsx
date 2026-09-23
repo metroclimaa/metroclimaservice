@@ -850,6 +850,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         {(renderFile || (existingRenderPath && !removeExistingRender)) && <div className="render-file-chip"><span>✓ {renderFile?.name || "Render guardado"}</span><button type="button" onClick={removeRender}>Quitar</button></div>}
         {savedBudgetNumber && <div className="saved-document-note"><span>✓</span><p><strong>Documento guardado</strong>El QR ya quedó vinculado a este presupuesto.</p></div>}
         <div className="builder-actions"><button type="button" onClick={() => window.print()} disabled={!savedBudgetNumber}>Imprimir / PDF</button><button className="admin-primary" onClick={saveBudget} disabled={saving || (Boolean(savedBudgetNumber) && !editingBudgetId)}>{saving ? "Guardando…" : editingBudgetId ? "Guardar cambios" : savedBudgetNumber ? "✓ Guardado" : "Guardar presupuesto"}</button></div>
+        <p className="pdf-link-tip">Para conservar los vínculos en el archivo, elegí <strong>Guardar como PDF</strong> del navegador. No uses la impresora “Microsoft Print to PDF”.</p>
       </section>
       <aside className="budget-preview">
         <div className="budget-live-summary" aria-live="polite">
@@ -857,18 +858,18 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
           {mode === "comparativo" ? <div className="budget-live-options"><BudgetLiveTotals title="Presupuesto 1" totals={totals} /><BudgetLiveTotals title="Presupuesto 2" totals={highTotals} /></div> : <BudgetLiveTotals totals={totals} />}
         </div>
         <div className="document-paper budget-print-document">
-          <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b><span>{savedBudgetNumber ? `PRE-${String(savedBudgetNumber).padStart(4, "0")}` : "NUEVO"}</span></div></header>
+          <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b></div></header>
           <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
           <h3>{title || "Descripción del trabajo"}</h3>
           {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
           {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{renderObservationMarkup(observations)}</p></div>}
           {renderPreview && <figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure>}
           <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{metroClima.paymentMethods}</strong></div><div><small>GARANTÍA</small><strong>{metroClima.warranty}</strong></div></div>
-          {reviewUrl && <a className="document-review-qr" href={reviewUrl} target="_blank" rel="noreferrer">
-            <QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" />
-            <span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá o hacé clic acá para contarnos tu experiencia.</strong><em>Tu comentario se vincula únicamente con este presupuesto.</em></span>
-          </a>}
-          <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong></div></footer>
+          {reviewUrl && <div className="document-review-qr">
+            <a className="document-qr-link" href={reviewUrl} target="_blank" rel="noreferrer" aria-label="Abrir formulario para comentar el trabajo"><QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" /></a>
+            <span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá el QR o tocá el enlace para contarnos tu experiencia.</strong><a className="document-review-link" href={reviewUrl} target="_blank" rel="noreferrer">Abrir enlace para dejar tu comentario →</a><em>Tu comentario se vincula únicamente con este presupuesto.</em></span>
+          </div>}
+          <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong><a className="document-site-link" href={metroClima.siteUrl} target="_blank" rel="noreferrer">metroclimaa.com.ar</a></div></footer>
         </div>
       </aside>
     </div>
