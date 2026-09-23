@@ -554,6 +554,8 @@ img { display: block; max-width: 100%; }
 .budget-live-totals .budget-live-grand-total strong { color: #173b62; font: 700 20px Georgia,serif; }
 .budget-print-document { display: none; }
 .document-paper { min-height: 730px; padding: 30px; background: #fff; box-shadow: 0 18px 50px rgba(20,45,74,.12); }
+.document-print-table { width: 100%; border: 0; border-collapse: collapse; border-spacing: 0; }
+.document-print-table td { padding: 0; vertical-align: top; }
 .document-header { display: grid; grid-template-columns: minmax(0,1fr) max-content; gap: 24px; align-items: start; padding-bottom: 24px; border-bottom: 2px solid #183a60; }
 .document-brand { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .document-brand img { width: 38px; height: 38px; border-radius: 50%; }
@@ -568,7 +570,7 @@ img { display: block; max-width: 100%; }
 .document-meta small { color: #4d7fc3; font-size: 6px; font-weight: 800; }
 .document-meta strong { font-size: 9px; }
 .document-meta span { color: #85919d; font-size: 7px; }
-.document-sheet > h3 { margin: 0 0 22px; font: 400 17px Georgia, serif; }
+.document-sheet-content > h3 { margin: 0 0 22px; font: 400 17px Georgia, serif; }
 .document-section { margin-top: 18px; }
 .document-section > b { display: block; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(18,42,70,.12); color: #4d7fc3; font-size: 6px; letter-spacing: .1em; }
 .document-section > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; color: #384c62; font-size: 8px; }
@@ -599,12 +601,12 @@ img { display: block; max-width: 100%; }
 .document-conditions { margin-top: 24px; padding: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; background: #f5f7f9; }
 .document-conditions > div { display: grid; gap: 4px; }
 .document-conditions > div + div { padding-left: 14px; border-left: 1px solid rgba(18,42,70,.1); }
-.document-conditions small, .document-sheet > footer small { color: #4d7fc3; font-size: 6px; font-weight: 800; }
+.document-conditions small, .document-sheet-content > footer small { color: #4d7fc3; font-size: 6px; font-weight: 800; }
 .document-conditions strong { color: #53667a; font-size: 7px; line-height: 1.45; }
-.document-sheet > footer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 22px; padding-top: 12px; border-top: 1px solid #617285; }
-.document-sheet > footer > div { display: grid; gap: 4px; }
-.document-sheet > footer > div:last-child { text-align: right; }
-.document-sheet > footer strong { overflow-wrap: anywhere; color: #526579; font-size: 7px; }
+.document-sheet-content > footer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 22px; padding-top: 12px; border-top: 1px solid #617285; }
+.document-sheet-content > footer > div { display: grid; gap: 4px; }
+.document-sheet-content > footer > div:last-child { text-align: right; }
+.document-sheet-content > footer strong { overflow-wrap: anywhere; color: #526579; font-size: 7px; }
 .document-site-link { color: #2e6095; font-size: 7px; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .budget-preview > p { color: #95a1ad; font-size: 7px; text-align: center; }
 .admin-toast { position: fixed; right: 25px; bottom: 25px; z-index: 50; min-width: 290px; padding: 15px 18px; display: flex; align-items: center; justify-content: space-between; gap: 15px; background: #173b62; color: #fff; box-shadow: 0 18px 42px rgba(11,31,53,.25); font-size: 9px; }
@@ -691,13 +693,18 @@ img { display: block; max-width: 100%; }
   .budget-preview { position: static !important; width: 100% !important; margin: 0 !important; }
   .budget-print-document { display: block !important; }
   .document-paper { width: 100% !important; min-height: auto; margin: 0 !important; padding: 0 !important; box-sizing: border-box; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .document-sheet { width: 210mm !important; min-height: 297mm !important; margin: 0 !important; padding: 14mm 15mm !important; box-sizing: border-box; break-after: page; page-break-after: always; }
+  .document-sheet { width: 210mm !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box; break-after: page; page-break-after: always; }
   .document-sheet:last-child { break-after: auto; page-break-after: auto; }
+  .document-print-table { width: 210mm !important; border-collapse: collapse !important; }
+  .document-print-table thead { display: table-header-group !important; }
+  .document-print-table tbody { display: table-row-group !important; }
+  .document-print-header-cell { padding: 14mm 15mm 0 !important; background: #fff !important; }
+  .document-print-content-cell { padding: 0 15mm 14mm !important; }
   .document-header { position: static !important; height: auto !important; gap: 30px !important; padding-bottom: 20px !important; box-sizing: border-box; background: #fff !important; }
   .document-sheet-render .document-render { margin-top: 14mm !important; }
-  .document-options, .document-conditions, .document-sheet > footer { grid-template-columns: 1fr 1fr !important; }
+  .document-options, .document-conditions, .document-sheet-content > footer { grid-template-columns: 1fr 1fr !important; }
   .document-conditions > div + div { padding: 0 0 0 14px !important; border-top: 0 !important; border-left: 1px solid rgba(18,42,70,.1) !important; }
-  .document-sheet > footer > div:last-child { text-align: right !important; }
+  .document-sheet-content > footer > div:last-child { text-align: right !important; }
   .document-brand img { width: 46px !important; height: 46px !important; }
   .document-brand strong { font-size: 14px !important; }
   .document-brand small { display: block !important; font-size: 8px !important; }
@@ -707,7 +714,7 @@ img { display: block; max-width: 100%; }
   .document-meta small { font-size: 8px !important; }
   .document-meta strong { font-size: 11px !important; }
   .document-meta span { font-size: 9px !important; }
-  .document-sheet > h3 { margin-bottom: 18px !important; font-size: 21px !important; }
+  .document-sheet-content > h3 { margin-bottom: 18px !important; font-size: 21px !important; }
   .document-option-title strong { font-size: 10px !important; }
   .document-section > b { font-size: 8.5px !important; }
   .document-section > div { font-size: 10px !important; line-height: 1.35 !important; }
@@ -719,14 +726,14 @@ img { display: block; max-width: 100%; }
   .document-totals > small { font-size: 8px !important; }
   .document-observations small, .document-render figcaption { font-size: 8.5px !important; }
   .document-observations p { font-size: 9.5px !important; line-height: 1.55 !important; }
-  .document-conditions small, .document-sheet > footer small { font-size: 8px !important; }
+  .document-conditions small, .document-sheet-content > footer small { font-size: 8px !important; }
   .document-conditions strong { font-size: 9.5px !important; }
   .document-review-qr small { font-size: 8px !important; }
   .document-review-qr strong { font-size: 10px !important; }
   .document-review-link { font-size: 9px !important; }
   .document-review-qr em { font-size: 8px !important; }
   .document-site-link { font-size: 9px !important; }
-  .document-sheet > footer strong { font-size: 8.5px !important; }
+  .document-sheet-content > footer strong { font-size: 8.5px !important; }
   .document-option, .document-observations, .document-render, .document-conditions, .document-review-qr { break-inside: avoid; }
   @page { size: A4 portrait; margin: 0; }
 }

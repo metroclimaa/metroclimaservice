@@ -859,14 +859,18 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         </div>
         <div className="document-paper budget-print-document">
           <section className="document-sheet document-sheet-primary">
-            <BudgetDocumentHeader />
-            <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
-            <h3>{title || "Descripción del trabajo"}</h3>
-            {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
-            {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{renderObservationMarkup(observations)}</p></div>}
-            {!renderPreview && <BudgetDocumentClosing reviewUrl={reviewUrl} />}
+            <table className="document-print-table">
+              <thead><tr><td className="document-print-header-cell"><BudgetDocumentHeader /></td></tr></thead>
+              <tbody><tr><td className="document-print-content-cell"><div className="document-sheet-content">
+                <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
+                <h3>{title || "Descripción del trabajo"}</h3>
+                {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
+                {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{renderObservationMarkup(observations)}</p></div>}
+                {!renderPreview && <BudgetDocumentClosing reviewUrl={reviewUrl} />}
+              </div></td></tr></tbody>
+            </table>
           </section>
-          {renderPreview && <section className="document-sheet document-sheet-render"><BudgetDocumentHeader /><figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure><BudgetDocumentClosing reviewUrl={reviewUrl} /></section>}
+          {renderPreview && <section className="document-sheet document-sheet-render"><table className="document-print-table"><thead><tr><td className="document-print-header-cell"><BudgetDocumentHeader /></td></tr></thead><tbody><tr><td className="document-print-content-cell"><div className="document-sheet-content"><figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure><BudgetDocumentClosing reviewUrl={reviewUrl} /></div></td></tr></tbody></table></section>}
         </div>
       </aside>
     </div>
