@@ -691,8 +691,8 @@ img { display: block; max-width: 100%; }
   .admin-layout, .admin-main, .admin-content, .budget-builder-grid { width: 100% !important; margin: 0 !important; padding: 0 !important; display: block !important; }
   .budget-preview { position: static !important; width: 100% !important; margin: 0 !important; }
   .budget-print-document { display: block !important; }
-  .document-paper { width: 100% !important; min-height: auto; margin: 0 !important; padding: 14mm 15mm !important; box-sizing: border-box; box-shadow: none; }
-  .document-paper > header { gap: 30px !important; padding-bottom: 20px !important; }
+  .document-paper { width: 100% !important; min-height: auto; margin: 0 !important; padding: 0 !important; box-sizing: border-box; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .document-paper > header { position: fixed !important; top: -25mm !important; left: 0 !important; right: 0 !important; z-index: 10 !important; height: 18mm !important; gap: 30px !important; padding-bottom: 20px !important; box-sizing: border-box; background: #fff !important; }
   .document-brand img { width: 46px !important; height: 46px !important; }
   .document-brand strong { font-size: 14px !important; }
   .document-brand small { display: block !important; font-size: 8px !important; }
@@ -724,7 +724,7 @@ img { display: block; max-width: 100%; }
   .document-site-link { font-size: 9px !important; }
   .document-paper > footer strong { font-size: 8.5px !important; }
   .document-option, .document-observations, .document-render, .document-conditions, .document-review-qr { break-inside: avoid; }
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: A4 portrait; margin: 34mm 15mm 14mm; }
 }
 
 @media (max-width: 1050px) {
