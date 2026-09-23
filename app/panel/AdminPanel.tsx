@@ -858,21 +858,30 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
           {mode === "comparativo" ? <div className="budget-live-options"><BudgetLiveTotals title="Presupuesto 1" totals={totals} /><BudgetLiveTotals title="Presupuesto 2" totals={highTotals} /></div> : <BudgetLiveTotals totals={totals} />}
         </div>
         <div className="document-paper budget-print-document">
-          <header><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b></div></header>
-          <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
-          <h3>{title || "Descripción del trabajo"}</h3>
-          {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
-          {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{renderObservationMarkup(observations)}</p></div>}
-          {renderPreview && <figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure>}
-          <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{metroClima.paymentMethods}</strong></div><div><small>GARANTÍA</small><strong>{metroClima.warranty}</strong></div></div>
-          {reviewUrl && <div className="document-review-qr">
-            <a className="document-qr-link" href={reviewUrl} target="_blank" rel="noreferrer" aria-label="Abrir formulario para comentar el trabajo"><QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" /></a>
-            <span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá el QR o tocá el enlace para contarnos tu experiencia.</strong><a className="document-review-link" href={reviewUrl} target="_blank" rel="noreferrer">Abrir enlace para dejar tu comentario →</a><em>Tu comentario se vincula únicamente con este presupuesto.</em></span>
-          </div>}
-          <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong><a className="document-site-link" href={metroClima.siteUrl} target="_blank" rel="noreferrer">metroclimaa.com.ar</a></div></footer>
+          <section className="document-sheet document-sheet-primary">
+            <BudgetDocumentHeader />
+            <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
+            <h3>{title || "Descripción del trabajo"}</h3>
+            {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
+            {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{renderObservationMarkup(observations)}</p></div>}
+            {!renderPreview && <BudgetDocumentClosing reviewUrl={reviewUrl} />}
+          </section>
+          {renderPreview && <section className="document-sheet document-sheet-render"><BudgetDocumentHeader /><figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure><BudgetDocumentClosing reviewUrl={reviewUrl} /></section>}
         </div>
       </aside>
     </div>
+  </>;
+}
+
+function BudgetDocumentHeader() {
+  return <header className="document-header"><div className="document-brand"><img src="/metroclima-logo.png" alt="" /><div><strong>METROCLIMA</strong><small>Climatización + Electricidad</small></div></div><div><b>PRESUPUESTO</b></div></header>;
+}
+
+function BudgetDocumentClosing({ reviewUrl }: { reviewUrl: string }) {
+  return <>
+    <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{metroClima.paymentMethods}</strong></div><div><small>GARANTÍA</small><strong>{metroClima.warranty}</strong></div></div>
+    {reviewUrl && <div className="document-review-qr"><a className="document-qr-link" href={reviewUrl} target="_blank" rel="noreferrer" aria-label="Abrir formulario para comentar el trabajo"><QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" /></a><span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá el QR o tocá el enlace para contarnos tu experiencia.</strong><a className="document-review-link" href={reviewUrl} target="_blank" rel="noreferrer">Abrir enlace para dejar tu comentario →</a><em>Tu comentario se vincula únicamente con este presupuesto.</em></span></div>}
+    <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong><a className="document-site-link" href={metroClima.siteUrl} target="_blank" rel="noreferrer">metroclimaa.com.ar</a></div></footer>
   </>;
 }
 
