@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { metroClima } from "@/lib/metroclima";
 import { getSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase/client";
@@ -515,6 +515,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   const [taxMode, setTaxMode] = useState("monotributo_iva_no_discriminado");
   const [mode, setMode] = useState<BudgetMode>("simple");
   const [observations, setObservations] = useState("");
+  const observationsRef = useRef<HTMLTextAreaElement>(null);
   const [renderFile, setRenderFile] = useState<File | null>(null);
   const [renderPreview, setRenderPreview] = useState("");
   const [existingRenderPath, setExistingRenderPath] = useState("");
@@ -561,6 +562,24 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
   function removeRender() {
     chooseRender(null);
     setRemoveExistingRender(Boolean(existingRenderPath));
+  }
+
+  function formatObservation(style: "bold" | "underline") {
+    const field = observationsRef.current;
+    if (!field) return;
+    const start = field.selectionStart ?? observations.length;
+    const end = field.selectionEnd ?? start;
+    const prefix = style === "bold" ? "**" : "[u]";
+    const suffix = style === "bold" ? "**" : "[/u]";
+    const placeholder = style === "bold" ? "texto en negrita" : "texto subrayado";
+    const selected = observations.slice(start, end) || placeholder;
+    const next = `${observations.slice(0, start)}${prefix}${selected}${suffix}${observations.slice(end)}`;
+    if (next.length > 4000) return;
+    setObservations(next);
+    requestAnimationFrame(() => {
+      field.focus();
+      field.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    });
   }
 
   async function editDraft(row: Budget) {
@@ -826,7 +845,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
         <label><span>Condición del emisor</span><select value={taxMode} onChange={(event) => setTaxMode(event.target.value)}><option value="monotributo_iva_no_discriminado">Monotributo · IVA no discriminado</option><option value="sin_impuesto_agregado">Presupuesto informativo · sin impuesto agregado</option><option value="responsable_inscripto_iva_21">Responsable inscripto · IVA 21% (futuro)</option></select></label>
         <div className="fiscal-note"><span>i</span><p>Con el régimen actual se prevé comprobante tipo C y el IVA no se discrimina. La alternativa del 21% queda preparada para un cambio futuro.</p></div>
         <div className="form-section-title"><span>05</span><div><h2>Observaciones y render</h2><p>Información opcional visible en el documento</p></div></div>
-        <label><span>Observaciones</span><textarea rows={5} maxLength={4000} value={observations} onChange={(event) => setObservations(event.target.value)} placeholder="Ej. El trabajo se coordinará fuera del horario comercial. No incluye tareas de albañilería." /></label>
+        <div className="observation-editor"><div className="observation-editor-head"><span>Observaciones</span><div className="observation-toolbar" role="toolbar" aria-label="Formato de observaciones"><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatObservation("bold")} title="Aplicar negrita"><b>B</b><span>Negrita</span></button><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => formatObservation("underline")} title="Aplicar subrayado"><u>S</u><span>Subrayado</span></button></div></div><textarea ref={observationsRef} rows={7} maxLength={4000} value={observations} onChange={(event) => setObservations(event.target.value)} placeholder="Ej. El trabajo se coordinará fuera del horario comercial. No incluye tareas de albañilería." /><small>Seleccioná una palabra o frase y aplicá negrita o subrayado. El formato se verá limpio en el PDF.</small></div>
         <label className="render-upload"><span>Render o imagen de referencia · opcional</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseRender(event.target.files?.[0] || null)} /><small>JPG, PNG o WebP · máximo 10 MB. Se incorpora al PDF del presupuesto.</small></label>
         {(renderFile || (existingRenderPath && !removeExistingRender)) && <div className="render-file-chip"><span>✓ {renderFile?.name || "Render guardado"}</span><button type="button" onClick={removeRender}>Quitar</button></div>}
         {savedBudgetNumber && <div className="saved-document-note"><span>✓</span><p><strong>Documento guardado</strong>El QR ya quedó vinculado a este presupuesto.</p></div>}
@@ -842,7 +861,7 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
           <div className="document-meta"><div><small>CLIENTE</small><strong>{selectedClient?.nombre_razon_social || "Seleccionar cliente"}</strong><span>{selectedClient?.localidad || "Buenos Aires"}</span></div><div><small>FECHA</small><strong>{new Intl.DateTimeFormat("es-AR").format(new Date())}</strong><span>Válido por {validity} días</span></div></div>
           <h3>{title || "Descripción del trabajo"}</h3>
           {mode === "comparativo" ? <div className="document-options"><BudgetDocumentOption label="low" labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} /><BudgetDocumentOption label="high" labor={highLabor} materials={highMaterialLines} totals={highTotals} taxMode={taxMode} /></div> : <BudgetDocumentOption labor={labor} materials={materialLines} totals={totals} taxMode={taxMode} />}
-          {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{observations}</p></div>}
+          {observations.trim() && <div className="document-observations"><small>OBSERVACIONES</small><p>{renderObservationMarkup(observations)}</p></div>}
           {renderPreview && <figure className="document-render"><figcaption>VISTA PROPUESTA · IMAGEN DE REFERENCIA</figcaption><img src={renderPreview} alt="Render o imagen de referencia de la propuesta" /></figure>}
           <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{metroClima.paymentMethods}</strong></div><div><small>GARANTÍA</small><strong>{metroClima.warranty}</strong></div></div>
           {reviewUrl && <a className="document-review-qr" href={reviewUrl} target="_blank" rel="noreferrer">
@@ -854,6 +873,15 @@ function Budgets({ budgets, clients, userId, onRefresh }: { budgets: Budget[]; c
       </aside>
     </div>
   </>;
+}
+
+function renderObservationMarkup(text: string): ReactNode[] {
+  const tokens = text.split(/(\*\*[\s\S]+?\*\*|\[u\][\s\S]+?\[\/u\])/g).filter(Boolean);
+  return tokens.map((token, index) => {
+    if (token.startsWith("**") && token.endsWith("**")) return <strong key={index}>{renderObservationMarkup(token.slice(2, -2))}</strong>;
+    if (token.startsWith("[u]") && token.endsWith("[/u]")) return <u key={index}>{renderObservationMarkup(token.slice(3, -4))}</u>;
+    return <span key={index}>{token}</span>;
+  });
 }
 
 function BudgetLiveTotals({ title, totals }: { title?: string; totals: { laborTotal: number; materialsTotal: number; tax: number; total: number } }) {
