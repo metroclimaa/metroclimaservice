@@ -554,8 +554,6 @@ img { display: block; max-width: 100%; }
 .budget-live-totals .budget-live-grand-total strong { color: #173b62; font: 700 20px Georgia,serif; }
 .budget-print-document { display: none; }
 .document-paper { min-height: 730px; padding: 30px; background: #fff; box-shadow: 0 18px 50px rgba(20,45,74,.12); }
-.document-print-table { width: 100%; border: 0; border-collapse: collapse; border-spacing: 0; }
-.document-print-table td { padding: 0; vertical-align: top; }
 .document-header { display: grid; grid-template-columns: minmax(0,1fr) max-content; gap: 24px; align-items: start; padding-bottom: 24px; border-bottom: 2px solid #183a60; }
 .document-brand { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .document-brand img { width: 38px; height: 38px; border-radius: 50%; }
@@ -693,22 +691,18 @@ img { display: block; max-width: 100%; }
   .budget-preview { position: static !important; width: 100% !important; margin: 0 !important; }
   .budget-print-document { display: block !important; }
   .document-paper { width: 100% !important; min-height: auto; margin: 0 !important; padding: 0 !important; box-sizing: border-box; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .document-sheet { width: 210mm !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box; break-after: page; page-break-after: always; }
+  .document-sheet { width: 100% !important; max-width: 210mm !important; min-height: 297mm !important; margin: 0 auto !important; padding: 14mm 13mm !important; overflow: hidden !important; box-sizing: border-box !important; break-after: page; page-break-after: always; }
   .document-sheet:last-child { break-after: auto; page-break-after: auto; }
-  .document-print-table { width: 210mm !important; border-collapse: collapse !important; }
-  .document-print-table thead { display: table-header-group !important; }
-  .document-print-table tbody { display: table-row-group !important; }
-  .document-print-header-cell { padding: 14mm 15mm 0 !important; background: #fff !important; }
-  .document-print-content-cell { padding: 0 15mm 14mm !important; }
+  .document-sheet-content, .document-header, .document-meta, .document-options, .document-option, .document-section, .document-totals, .document-observations, .document-conditions, .document-review-qr, .document-sheet-content > footer { width: 100% !important; max-width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
   .document-header { position: static !important; height: auto !important; gap: 30px !important; padding-bottom: 20px !important; box-sizing: border-box; background: #fff !important; }
-  .document-sheet-render .document-render { margin-top: 14mm !important; }
+  .document-sheet-observations .document-observations, .document-sheet-render .document-render { margin-top: 10mm !important; }
   .document-options, .document-conditions, .document-sheet-content > footer { grid-template-columns: 1fr 1fr !important; }
   .document-conditions > div + div { padding: 0 0 0 14px !important; border-top: 0 !important; border-left: 1px solid rgba(18,42,70,.1) !important; }
   .document-sheet-content > footer > div:last-child { text-align: right !important; }
   .document-brand img { width: 46px !important; height: 46px !important; }
   .document-brand strong { font-size: 14px !important; }
   .document-brand small { display: block !important; font-size: 8px !important; }
-  .document-header > div:last-child { min-width: 145px !important; }
+  .document-header > div:last-child { min-width: 118px !important; }
   .document-header > div:last-child b { font-size: 21px !important; }
   .document-meta { margin: 19px 0 !important; padding: 14px !important; }
   .document-meta small { font-size: 8px !important; }
@@ -734,6 +728,8 @@ img { display: block; max-width: 100%; }
   .document-review-qr em { font-size: 8px !important; }
   .document-site-link { font-size: 9px !important; }
   .document-sheet-content > footer strong { font-size: 8.5px !important; }
+  .document-section > div > strong, .document-totals b, .document-header b { white-space: nowrap !important; }
+  .document-review-qr > span, .document-sheet-content > footer > div, .document-meta > div { min-width: 0 !important; overflow-wrap: anywhere !important; }
   .document-option, .document-observations, .document-render, .document-conditions, .document-review-qr { break-inside: avoid; }
   @page { size: A4 portrait; margin: 0; }
 }
