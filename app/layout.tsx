@@ -2,17 +2,22 @@ import type { Metadata } from "next";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { AdminUsabilityFixes } from "@/components/AdminUsabilityFixes";
 import { WorkQuickEditor } from "@/components/WorkQuickEditor";
+import { metroClima } from "@/lib/metroclima";
 import "./globals.css";
 import "./compact-home.css";
 import "./admin-mobile-fixes.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(metroClima.siteUrl),
   title: {
     default: "MetroClima | Climatización y electricidad",
     template: "%s | MetroClima",
   },
   description:
     "Climatización y electricidad profesional para hogares, comercios y empresas en CABA y Gran Buenos Aires.",
+  alternates: {
+    canonical: "/",
+  },
   keywords: [
     "aire acondicionado",
     "instalación de aire acondicionado",
@@ -41,3 +46,4 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
+

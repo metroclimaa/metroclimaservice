@@ -883,7 +883,7 @@ function BudgetDocumentClosing({ reviewUrl }: { reviewUrl: string }) {
   return <>
     <div className="document-conditions"><div><small>CONDICIONES DE PAGO</small><strong>{metroClima.paymentMethods}</strong></div><div><small>GARANTÍA</small><strong>{metroClima.warranty}</strong></div></div>
     {reviewUrl && <div className="document-review-qr"><a className="document-qr-link" href={reviewUrl} target="_blank" rel="noreferrer" aria-label="Abrir formulario para comentar el trabajo"><QRCodeSVG value={reviewUrl} size={74} level="M" marginSize={1} title="QR para comentar el trabajo" /></a><span><small>AL FINALIZAR EL TRABAJO</small><strong>Escaneá el QR o tocá el enlace para contarnos tu experiencia.</strong><a className="document-review-link" href={reviewUrl} target="_blank" rel="noreferrer">Abrir enlace para dejar tu comentario →</a><em>Tu comentario se vincula únicamente con este presupuesto.</em></span></div>}
-    <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong><a className="document-site-link" href={metroClima.siteUrl} target="_blank" rel="noreferrer">metroclimaa.com.ar</a></div></footer>
+    <footer><div><small>RESPONSABLES</small><strong>Cristian · Nicolás</strong></div><div><small>CONTACTO</small><strong>WhatsApp · {metroClima.whatsapp[0].display} / {metroClima.whatsapp[1].display}</strong><a className="document-site-link" href={metroClima.siteUrl} target="_blank" rel="noreferrer">www.metroclimaa.com.ar</a></div></footer>
   </>;
 }
 

@@ -28,6 +28,13 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const canonicalHost = "www.metroclimaa.com.ar";
+
+    if (url.hostname === "metroclimaa.com.ar" || (url.hostname === canonicalHost && url.protocol !== "https:")) {
+      url.protocol = "https:";
+      url.hostname = canonicalHost;
+      return Response.redirect(url.toString(), 308);
+    }
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -45,3 +52,4 @@ const worker = {
 };
 
 export default worker;
+
